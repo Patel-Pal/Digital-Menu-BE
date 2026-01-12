@@ -29,6 +29,15 @@ const shopSchema = new mongoose.Schema({
   qrScans: {
     type: Number,
     default: 0
+  },
+  menuViews: {
+    type: Number,
+    default: 0
+  },
+  menuTheme: {
+    type: String,
+    enum: ['coral', 'ocean', 'forest', 'sunset', 'midnight', 'lavender'],
+    default: 'coral'
   }
 }, {
   timestamps: true

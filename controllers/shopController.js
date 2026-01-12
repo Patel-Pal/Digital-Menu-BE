@@ -104,7 +104,7 @@ const getShopProfile = async (req, res) => {
 // @access  Private
 const createOrUpdateShopProfile = async (req, res) => {
   try {
-    const { description, logo, banner, address, phone } = req.body;
+    const { description, logo, banner, address, phone, menuTheme } = req.body;
     const ownerId = req.user._id;
     
     // Use user's name and email from the logged-in user
@@ -117,7 +117,7 @@ const createOrUpdateShopProfile = async (req, res) => {
       // Update existing shop
       shop = await Shop.findByIdAndUpdate(
         shop._id,
-        { name, description, logo, banner, address, phone, email },
+        { name, description, logo, banner, address, phone, email, menuTheme },
         { new: true, runValidators: true }
       );
     } else {
@@ -130,7 +130,8 @@ const createOrUpdateShopProfile = async (req, res) => {
         address,
         phone,
         email,
-        ownerId
+        ownerId,
+        menuTheme: menuTheme || 'coral'
       });
     }
     
