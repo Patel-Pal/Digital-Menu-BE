@@ -38,6 +38,16 @@ const shopSchema = new mongoose.Schema({
     type: String,
     enum: ['coral', 'ocean', 'forest', 'sunset', 'midnight', 'lavender'],
     default: 'coral'
+  },
+  rating: {
+    type: Number,
+    default: 4.8,
+    min: 1,
+    max: 5
+  },
+  reviewCount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

@@ -9,7 +9,8 @@ const {
   createOrUpdateShopProfile,
   getShopAnalytics,
   incrementScan,
-  incrementView
+  incrementView,
+  getDetailedAnalytics
 } = require('../controllers/shopController');
 const { auth, authorize } = require('../middleware/auth');
 
@@ -19,6 +20,7 @@ const router = express.Router();
 router.get('/profile', auth, getShopProfile);
 router.post('/profile', auth, createOrUpdateShopProfile);
 router.get('/analytics', auth, getShopAnalytics);
+router.get('/analytics/detailed', auth, getDetailedAnalytics);
 
 // Other routes
 router.get('/', getShops);
