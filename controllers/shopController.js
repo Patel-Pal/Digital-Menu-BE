@@ -140,4 +140,85 @@ const createOrUpdateShopProfile = async (req, res) => {
   }
 };
 
-module.exports = { getShops, getShop, createShop, updateShop, deleteShop, getShopProfile, createOrUpdateShopProfile };
+// @desc    Get shop analytics
+// @route   GET /api/shops/analytics
+// @access  Private
+const getShopAnalytics = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ ownerId: req.user._id });
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    // Calculate real percentage changes
+    const currentScans = shop.qrScans || 0;
+    const lastWeekScans = shop.lastWeekScans || 0;
+    const currentViews = shop.menuViews || 0;
+    const lastWeekViews = shop.lastWeekViews || 0;
+    
+    const scansChange = lastWeekScans > 0 
+      ? Math.round(((currentScans - lastWeekScans) / lastWeekScans) * 100)
+      : currentScans > 0 ? 100 : 0;
+      
+    const viewsChange = lastWeekViews > 0 
+      ? Math.round(((currentViews - lastWeekViews) / lastWeekViews) * 100)
+      : currentViews > 0 ? 100 : 0;
+    
+    res.json({ 
+      success: true, 
+      data: {
+        totalScans: currentScans,
+        menuViews: currentViews,
+        scansChange: `${scansChange >= 0 ? '+' : ''}${scansChange}% this week`,
+        viewsChange: `${viewsChange >= 0 ? '+' : ''}${viewsChange}% this week`
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Increment QR scan count
+// @route   POST /api/shops/:id/scan
+// @access  Public
+const incrementScan = async (req, res) => {
+  try {
+    const shop = await Shop.findOneAndUpdate(
+      { ownerId: req.params.id },
+      { $inc: { qrScans: 1 } },
+      { new: true }
+    );
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    res.json({ success: true, data: { scans: shop.qrScans } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Increment menu view count
+// @route   POST /api/shops/:id/view
+// @access  Public
+const incrementView = async (req, res) => {
+  try {
+    const shop = await Shop.findOneAndUpdate(
+      { ownerId: req.params.id },
+      { $inc: { menuViews: 1 } },
+      { new: true }
+    );
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    res.json({ success: true, data: { views: shop.menuViews } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getShops, getShop, createShop, updateShop, deleteShop, getShopProfile, createOrUpdateShopProfile, getShopAnalytics, incrementScan, incrementView };
