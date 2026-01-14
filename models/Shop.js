@@ -6,6 +6,11 @@ const shopSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  type: {
+    type: String,
+    enum: ['restaurant', 'cafe'],
+    default: 'restaurant'
+  },
   description: String,
   logo: String,
   banner: String,

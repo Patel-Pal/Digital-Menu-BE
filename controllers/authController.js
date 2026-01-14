@@ -110,6 +110,16 @@ const updateProfile = async (req, res) => {
 
     await user.save();
 
+    // Also update shop name and email if user is a shopkeeper
+    if (user.role === 'shopkeeper') {
+      const Shop = require('../models/Shop');
+      await Shop.findOneAndUpdate(
+        { ownerId: user._id },
+        { name: user.name, email: user.email },
+        { new: true }
+      );
+    }
+
     // Return updated user without password
     const updatedUser = {
       id: user._id,
