@@ -25,7 +25,8 @@ const userSchema = new mongoose.Schema({
   },
   shopId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Shop'
+    ref: 'Shop',
+    default: null
   },
   avatar: String,
   isActive: {

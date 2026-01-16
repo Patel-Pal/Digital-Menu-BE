@@ -87,15 +87,42 @@ const deleteShop = async (req, res) => {
 // @access  Private
 const getShopProfile = async (req, res) => {
   try {
+    // Ensure user is authenticated and has valid ID
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        debug: 'req.user or req.user._id is missing'
+      });
+    }
+
+    console.log('Getting shop profile for user:', req.user._id, 'Role:', req.user.role);
+
     const shop = await Shop.findOne({ ownerId: req.user._id });
     
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found' });
+      console.log('No shop found for user:', req.user._id);
+      return res.status(404).json({ 
+        message: 'Shop not found',
+        debug: {
+          userId: req.user._id,
+          userRole: req.user.role,
+          searchQuery: { ownerId: req.user._id }
+        }
+      });
     }
     
+    console.log('Shop found:', shop._id, 'for user:', req.user._id);
     res.json({ success: true, data: shop });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Shop profile error:', error);
+    res.status(500).json({ 
+      message: error.message,
+      debug: {
+        userId: req.user?._id,
+        userRole: req.user?.role,
+        error: error.stack
+      }
+    });
   }
 };
 
@@ -104,6 +131,11 @@ const getShopProfile = async (req, res) => {
 // @access  Private
 const createOrUpdateShopProfile = async (req, res) => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     const { description, logo, banner, address, phone, menuTheme, type } = req.body;
     const ownerId = req.user._id;
     
@@ -111,10 +143,13 @@ const createOrUpdateShopProfile = async (req, res) => {
     const name = req.user.name;
     const email = req.user.email;
     
+    console.log('Creating/updating shop profile for user:', ownerId);
+    
     let shop = await Shop.findOne({ ownerId });
     
     if (shop) {
       // Update existing shop
+      console.log('Updating existing shop:', shop._id);
       shop = await Shop.findByIdAndUpdate(
         shop._id,
         { name, description, logo, banner, address, phone, email, menuTheme, type },
@@ -122,6 +157,7 @@ const createOrUpdateShopProfile = async (req, res) => {
       );
     } else {
       // Create new shop
+      console.log('Creating new shop for user:', ownerId);
       shop = await Shop.create({
         name,
         description,
@@ -136,9 +172,17 @@ const createOrUpdateShopProfile = async (req, res) => {
       });
     }
     
+    console.log('Shop profile saved:', shop._id);
     res.json({ success: true, data: shop });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Create/update shop profile error:', error);
+    res.status(500).json({ 
+      message: error.message,
+      debug: {
+        userId: req.user?._id,
+        error: error.stack
+      }
+    });
   }
 };
 
@@ -147,10 +191,21 @@ const createOrUpdateShopProfile = async (req, res) => {
 // @access  Private
 const getShopAnalytics = async (req, res) => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     const shop = await Shop.findOne({ ownerId: req.user._id });
     
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found' });
+      return res.status(404).json({ 
+        message: 'Shop not found',
+        debug: {
+          userId: req.user._id,
+          userRole: req.user.role
+        }
+      });
     }
     
     // Calculate real percentage changes
@@ -177,7 +232,14 @@ const getShopAnalytics = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Shop analytics error:', error);
+    res.status(500).json({ 
+      message: error.message,
+      debug: {
+        userId: req.user?._id,
+        error: error.stack
+      }
+    });
   }
 };
 
@@ -248,15 +310,26 @@ const incrementView = async (req, res) => {
 // @access  Private
 const getDetailedAnalytics = async (req, res) => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     const shop = await Shop.findOne({ ownerId: req.user._id });
     
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found' });
+      return res.status(404).json({ 
+        message: 'Shop not found',
+        debug: {
+          userId: req.user._id,
+          userRole: req.user.role
+        }
+      });
     }
 
-    // Get menu items for this shop
+    // Get menu items for this shop - use shop._id instead of req.user.shopId
     const MenuItem = require('../models/MenuItem');
-    const menuItems = await MenuItem.find({ shopId: req.user.shopId }).populate('categoryId', 'name');
+    const menuItems = await MenuItem.find({ shopId: shop._id }).populate('categoryId', 'name');
     
     // Calculate analytics data
     const currentScans = shop.qrScans || 0;
@@ -326,7 +399,14 @@ const getDetailedAnalytics = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Detailed analytics error:', error);
+    res.status(500).json({ 
+      message: error.message,
+      debug: {
+        userId: req.user?._id,
+        error: error.stack
+      }
+    });
   }
 };
 

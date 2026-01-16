@@ -13,13 +13,20 @@ const auth = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
-      return res.status(401).json({ message: 'Token is not valid' });
+      return res.status(401).json({ message: 'Token is not valid - user not found' });
+    }
+
+    // Ensure user has required fields
+    if (!user._id) {
+      return res.status(401).json({ message: 'Invalid user data' });
     }
 
     req.user = user;
+    console.log('Authenticated user:', user._id, 'Role:', user.role);
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Token is not valid' });
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ message: 'Token is not valid', error: error.message });
   }
 };
 
