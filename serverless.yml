@@ -1,0 +1,44 @@
+service: digital-menu-backend
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    NODE_ENV: production
+    MONGODB_URI: mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0
+    JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random
+    JWT_EXPIRE: 30d
+    CLOUDINARY_CLOUD_NAME: dfmvday8x
+    CLOUDINARY_API_KEY: 555552726469738
+    CLOUDINARY_API_SECRET: Qn2Yqbv6Cn2hzukZYIpnP1rBCCE
+  
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "*"
+
+functions:
+  api:
+    handler: lambda.handler
+    timeout: 30
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+      - http:
+          path: /
+          method: ANY
+          cors: true
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 5001
