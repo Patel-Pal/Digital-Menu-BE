@@ -11,9 +11,12 @@
       "region": "us-east-1",
       "environment": {
         "NODE_ENV": "production",
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/digital-menu?retryWrites=true&w=majority",
+        "MONGODB_URI": "mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0",
         "JWT_SECRET": "your-super-secret-jwt-key-here-make-it-long-and-random",
-        "JWT_EXPIRE": "30d"
+        "JWT_EXPIRE": "30d",
+        "CLOUDINARY_CLOUD_NAME": "dfmvday8x",
+        "CLOUDINARY_API_KEY": "555552726469738",
+        "CLOUDINARY_API_SECRET": "Qn2Yqbv6Cn2hzukZYIpnP1rBCCE"
       },
       "iamRoleStatements": [
         {
@@ -194,7 +197,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/digital-menu-backend/dev/1768839171954-2026-01-19T16:12:51.954Z/digital-menu-backend.zip"
+                "S3Key": "serverless/digital-menu-backend/dev/1768925487260-2026-01-20T16:11:27.260Z/digital-menu-backend.zip"
               },
               "Handler": "lambda.handler",
               "Runtime": "nodejs18.x",
@@ -204,9 +207,12 @@
               "Environment": {
                 "Variables": {
                   "NODE_ENV": "production",
-                  "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/digital-menu?retryWrites=true&w=majority",
+                  "MONGODB_URI": "mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0",
                   "JWT_SECRET": "your-super-secret-jwt-key-here-make-it-long-and-random",
-                  "JWT_EXPIRE": "30d"
+                  "JWT_EXPIRE": "30d",
+                  "CLOUDINARY_CLOUD_NAME": "dfmvday8x",
+                  "CLOUDINARY_API_KEY": "555552726469738",
+                  "CLOUDINARY_API_SECRET": "Qn2Yqbv6Cn2hzukZYIpnP1rBCCE"
                 }
               },
               "Role": {
@@ -220,14 +226,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionlH7aUl43zy7ChFKeKF6F271nNxrnXyuT4j3rHtdlgo": {
+          "ApiLambdaVersion6iRnf4Nkow3l2fyGAdJvdvia7fg6sh006XAv1QYM4": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "LRlE9HBmxrrIgYxyKeBVYXKj5HdfI44LXrze/aDfAXk="
+              "CodeSha256": "wd0qkOfNYzZ1/ULghB6HwoY0d2XB7D0/AjNXskwotu4="
             }
           },
           "ApiGatewayRestApi": {
@@ -445,7 +451,7 @@
               "ApiLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1768839148700": {
+          "ApiGatewayDeployment1768925474051": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -510,7 +516,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionlH7aUl43zy7ChFKeKF6F271nNxrnXyuT4j3rHtdlgo"
+              "Ref": "ApiLambdaVersion6iRnf4Nkow3l2fyGAdJvdvia7fg6sh006XAv1QYM4"
             },
             "Export": {
               "Name": "sls-digital-menu-backend-dev-ApiLambdaFunctionQualifiedArn"
@@ -696,7 +702,7 @@
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionlH7aUl43zy7ChFKeKF6F271nNxrnXyuT4j3rHtdlgo"
+        "versionLogicalId": "ApiLambdaVersion6iRnf4Nkow3l2fyGAdJvdvia7fg6sh006XAv1QYM4"
       }
     },
     "configValidationMode": "warn",
@@ -721,7 +727,7 @@
     "artifact": "C:\\Users\\HP\\Desktop\\Projects\\D-M\\Digital-Menu-BE\\.serverless\\digital-menu-backend.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/digital-menu-backend/dev/1768839171954-2026-01-19T16:12:51.954Z",
+    "artifactDirectoryName": "serverless/digital-menu-backend/dev/1768925487260-2026-01-20T16:11:27.260Z",
     "artifact": "digital-menu-backend.zip"
   }
 }
