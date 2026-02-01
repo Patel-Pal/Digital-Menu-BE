@@ -247,26 +247,115 @@ exports.getBill = async (req, res) => {
   }
 };
 
-// Debug endpoint to check orders
-exports.debugOrders = async (req, res) => {
+// Get billing analytics for shop
+exports.getBillingAnalytics = async (req, res) => {
   try {
-    const { deviceId, shopId } = req.query;
-    
-    const orders = await Order.find({
-      deviceId,
-      shopId
-    }).select('customerName deviceId status billingStatus createdAt items');
+    const { shopId } = req.params;
+    const { period = 'daily', days = 30 } = req.query;
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - parseInt(days));
+
+    // Get all bills for the period
+    const bills = await Bill.find({
+      shopId,
+      createdAt: { $gte: startDate, $lte: endDate }
+    }).sort({ createdAt: 1 });
+
+    // Calculate totals
+    const totalRevenue = bills.filter(b => b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0);
+    const totalBills = bills.length;
+    const paidBills = bills.filter(b => b.paymentStatus === 'paid').length;
+    const pendingBills = bills.filter(b => b.paymentStatus === 'pending').length;
+    const avgBillAmount = paidBills > 0 ? totalRevenue / paidBills : 0;
+
+    // Group data by period
+    const groupedData = {};
+    bills.forEach(bill => {
+      let key;
+      const date = new Date(bill.createdAt);
+      
+      if (period === 'daily') {
+        key = date.toISOString().split('T')[0];
+      } else if (period === 'weekly') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else if (period === 'monthly') {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      if (!groupedData[key]) {
+        groupedData[key] = {
+          date: key,
+          totalBills: 0,
+          paidBills: 0,
+          revenue: 0,
+          avgAmount: 0
+        };
+      }
+
+      groupedData[key].totalBills++;
+      if (bill.paymentStatus === 'paid') {
+        groupedData[key].paidBills++;
+        groupedData[key].revenue += bill.totalAmount;
+      }
+    });
+
+    // Calculate averages
+    Object.keys(groupedData).forEach(key => {
+      if (groupedData[key].paidBills > 0) {
+        groupedData[key].avgAmount = groupedData[key].revenue / groupedData[key].paidBills;
+      }
+    });
+
+    // Payment method breakdown
+    const paymentMethods = {};
+    bills.filter(b => b.paymentStatus === 'paid').forEach(bill => {
+      paymentMethods[bill.paymentMethod] = (paymentMethods[bill.paymentMethod] || 0) + 1;
+    });
+
+    // Top selling items
+    const itemStats = {};
+    bills.forEach(bill => {
+      bill.items.forEach(item => {
+        if (!itemStats[item.name]) {
+          itemStats[item.name] = { quantity: 0, revenue: 0 };
+        }
+        itemStats[item.name].quantity += item.quantity;
+        itemStats[item.name].revenue += item.totalPrice;
+      });
+    });
+
+    const topItems = Object.entries(itemStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
 
     res.json({
       success: true,
-      data: orders,
-      count: orders.length
+      data: {
+        summary: {
+          totalRevenue,
+          totalBills,
+          paidBills,
+          pendingBills,
+          avgBillAmount,
+          paymentRate: totalBills > 0 ? (paidBills / totalBills * 100).toFixed(1) : 0
+        },
+        chartData: Object.values(groupedData),
+        paymentMethods,
+        topItems,
+        period,
+        dateRange: { startDate, endDate }
+      }
     });
   } catch (error) {
-    console.error('Debug orders error:', error);
+    console.error('Get billing analytics error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to fetch orders', 
+      message: 'Failed to fetch billing analytics', 
       error: error.message 
     });
   }
