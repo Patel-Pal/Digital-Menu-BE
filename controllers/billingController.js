@@ -4,7 +4,7 @@ const Order = require('../models/Order');
 // Generate bill for customer
 exports.generateBill = async (req, res) => {
   try {
-    const { customerName, deviceId, shopId, tableNumber, paymentMethod = 'cash' } = req.body;
+    const { customerName, deviceId, shopId, tableNumber } = req.body;
 
     // Find all unbilled orders for this customer (any status except rejected)
     // Try with both customerName and deviceId, then fallback to just deviceId
@@ -83,7 +83,8 @@ exports.generateBill = async (req, res) => {
       subtotal,
       taxAmount,
       totalAmount,
-      paymentMethod
+      paymentMethod: 'cash', // Default payment method
+      paymentStatus: 'pending' // Always start as pending for shopkeeper processing
     });
 
     await bill.save();
