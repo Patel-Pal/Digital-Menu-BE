@@ -1,6 +1,4 @@
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/database');
@@ -12,36 +10,6 @@ dotenv.config();
 connectDB();
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'https://digital-menu-builder.vercel.app','https://digital-menu-fe.vercel.app'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
-// Make io available globally
-global.io = io;
-
-// Socket connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  socket.on('join_shop', (shopId) => {
-    socket.join(`shop_${shopId}`);
-    console.log(`Socket ${socket.id} joined shop_${shopId}`);
-  });
-  
-  socket.on('join_customer', (deviceId) => {
-    socket.join(`customer_${deviceId}`);
-    console.log(`Socket ${socket.id} joined customer_${deviceId}`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
 
 // Middleware
 app.use(cors({
@@ -77,6 +45,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

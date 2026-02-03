@@ -89,17 +89,6 @@ exports.generateBill = async (req, res) => {
 
     await bill.save();
 
-    // WebSocket notification to customer
-    if (global.io) {
-      global.io.to(`customer_${deviceId}`).emit('bill_generated', {
-        billId: bill._id,
-        totalAmount: bill.totalAmount,
-        items: bill.items,
-        customerName: bill.customerName,
-        tableNumber: bill.tableNumber
-      });
-    }
-
     // Update orders to mark as billed
     await Order.updateMany(
       { _id: { $in: orderIds } },
@@ -110,6 +99,17 @@ exports.generateBill = async (req, res) => {
     );
 
     await bill.populate('shopId', 'name');
+
+    // WebSocket notification to customer
+    if (global.io) {
+      global.io.to(`customer_${deviceId}`).emit('bill_generated', {
+        billId: bill._id,
+        totalAmount: bill.totalAmount,
+        items: bill.items,
+        customerName: bill.customerName,
+        tableNumber: bill.tableNumber
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -148,6 +148,7 @@ exports.updatePaymentStatus = async (req, res) => {
         message: 'Bill not found' 
       });
     }
+
     // WebSocket notification to shopkeeper when payment is received
     if (global.io && paymentStatus === 'paid') {
       global.io.to(`shop_${bill.shopId}`).emit('payment_received', {
@@ -158,6 +159,7 @@ exports.updatePaymentStatus = async (req, res) => {
         tableNumber: bill.tableNumber
       });
     }
+
     res.json({
       success: true,
       data: bill,
