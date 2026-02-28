@@ -1,7 +1,8 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const sendEmail = require('../utils/sendEmail');
+const emailService = require('../config/emailService');
+const { otpEmailTemplate, passwordResetConfirmationTemplate } = require('../utils/emailTemplates');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -175,36 +176,16 @@ const forgotPassword = async (req, res) => {
     user.resetOtpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    // Prepare email content
-    const message = `Your OTP for password reset is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you did not request this, please ignore this email.`;
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.5;">
-            You have requested to reset your password. Use the OTP below to proceed:
-          </p>
-          <div style="background-color: #f0f0f0; padding: 20px; border-radius: 5px; text-align: center; margin: 30px 0;">
-            <h1 style="color: #FF6B35; font-size: 36px; margin: 0; letter-spacing: 5px;">${otp}</h1>
-          </div>
-          <p style="color: #666; font-size: 14px; line-height: 1.5;">
-            This OTP will expire in <strong>10 minutes</strong>.
-          </p>
-          <p style="color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-            If you did not request this password reset, please ignore this email. Your password will remain unchanged.
-          </p>
-        </div>
-      </div>
-    `;
+    // Generate email content using template
+    const emailContent = otpEmailTemplate(otp, user.name);
 
-    // Send email
+    // Send email using email service
     try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Password Reset OTP - Digital Menu',
-        message,
-        html
+      await emailService.sendEmail({
+        to: user.email,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html
       });
 
       res.status(200).json({
@@ -333,30 +314,13 @@ const resetPassword = async (req, res) => {
 
     // Send confirmation email
     try {
-      const confirmMessage = `Your password has been successfully reset.\n\nIf you did not make this change, please contact support immediately.`;
+      const confirmEmailContent = passwordResetConfirmationTemplate(user.name);
       
-      const confirmHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; margin-bottom: 20px;">Password Reset Successful</h2>
-            <p style="color: #666; font-size: 16px; line-height: 1.5;">
-              Your password has been successfully reset.
-            </p>
-            <p style="color: #666; font-size: 14px; line-height: 1.5;">
-              You can now log in with your new password.
-            </p>
-            <p style="color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              If you did not make this change, please contact our support team immediately.
-            </p>
-          </div>
-        </div>
-      `;
-
-      await sendEmail({
-        email: user.email,
-        subject: 'Password Reset Successful - Digital Menu',
-        message: confirmMessage,
-        html: confirmHtml
+      await emailService.sendEmail({
+        to: user.email,
+        subject: confirmEmailContent.subject,
+        text: confirmEmailContent.text,
+        html: confirmEmailContent.html
       });
     } catch (emailError) {
       console.error('Confirmation email error:', emailError);
