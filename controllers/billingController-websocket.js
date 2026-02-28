@@ -100,14 +100,24 @@ exports.generateBill = async (req, res) => {
 
     await bill.populate('shopId', 'name');
 
-    // WebSocket notification to customer
+    // WebSocket notifications
     if (global.io) {
+      // Notify customer
       global.io.to(`customer_${deviceId}`).emit('bill_generated', {
         billId: bill._id,
         totalAmount: bill.totalAmount,
         items: bill.items,
         customerName: bill.customerName,
         tableNumber: bill.tableNumber
+      });
+      
+      // Notify shop
+      global.io.to(`shop_${shopId}`).emit('bill_generated', {
+        billId: bill._id,
+        customerName: bill.customerName,
+        tableNumber: bill.tableNumber,
+        totalAmount: bill.totalAmount,
+        paymentStatus: bill.paymentStatus
       });
     }
 

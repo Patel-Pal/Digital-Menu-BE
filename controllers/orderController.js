@@ -63,26 +63,60 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// Get orders for a shop
+// Get orders for a shop with counts
 exports.getShopOrders = async (req, res) => {
   try {
     const { shopId } = req.params;
     const { status, page = 1, limit = 20 } = req.query;
 
-    const filter = { shopId };
-    if (status) filter.status = status;
+    // Use aggregation to get counts efficiently in a single query
+    const countsPromise = Order.aggregate([
+      { $match: { shopId } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
 
-    const orders = await Order.find(filter)
+    // Get filtered orders for current tab
+    const filter = { shopId };
+    if (status && status !== 'all') filter.status = status;
+
+    const ordersPromise = Order.find(filter)
       .populate('items.menuItemId')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(parseInt(limit))
+      .skip((page - 1) * parseInt(limit));
 
-    const total = await Order.countDocuments(filter);
+    const totalPromise = Order.countDocuments(filter);
+
+    // Execute all queries in parallel
+    const [countsResult, orders, total] = await Promise.all([
+      countsPromise,
+      ordersPromise,
+      totalPromise
+    ]);
+
+    // Transform counts result into object
+    const counts = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      completed: 0,
+      all: 0
+    };
+
+    countsResult.forEach(item => {
+      counts[item._id] = item.count;
+      counts.all += item.count;
+    });
 
     res.json({
       success: true,
       data: orders,
+      counts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
