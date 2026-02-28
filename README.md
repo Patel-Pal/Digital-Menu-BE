@@ -1,24 +1,57 @@
 # Digital Menu Backend
 
-A Node.js Express API for the Digital Menu application.
+A Node.js Express API for the Digital Menu application with real-time order management, billing, and multi-channel notifications.
 
-## Setup
+## Features
 
-1. Install dependencies:
+- 🔐 JWT Authentication with password reset (OTP-based)
+- 🏪 Multi-tenant shop management
+- 📱 Real-time order notifications (Socket.IO)
+- 💳 Billing and payment tracking
+- 📧 Professional email notifications (Resend/Brevo/SMTP)
+- ☁️ Cloudinary image management
+- 🚀 Serverless deployment ready (AWS Lambda)
+
+## Quick Start
+
+### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
-2. Create `.env` file with your configuration:
-```
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/digital-menu
-JWT_SECRET=your-super-secret-jwt-key-here
-JWT_EXPIRE=30d
+### 2. Configure Environment
+
+Copy `.env.example` to `.env` and update:
+
+```bash
+cp .env.example .env
 ```
 
-3. Start the server:
+Required variables:
+```env
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_secret_key
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your_resend_api_key
+```
+
+### 3. Setup Email Service (5 minutes)
+
+See [QUICK_EMAIL_SETUP.md](./QUICK_EMAIL_SETUP.md) for fastest setup.
+
+**Quick option - Resend:**
+1. Sign up at [resend.com](https://resend.com)
+2. Get API key
+3. Add to .env: `RESEND_API_KEY=re_your_key`
+
+**Test email:**
+```bash
+node test-email-service.js your-email@example.com
+```
+
+### 4. Start Server
+
 ```bash
 # Development
 npm run dev
@@ -26,6 +59,20 @@ npm run dev
 # Production
 npm start
 ```
+
+Server runs on http://localhost:5000
+
+## Email Service Setup
+
+The application supports 3 email providers:
+
+| Provider | Best For | Free Tier | Setup Time |
+|----------|----------|-----------|------------|
+| **Resend** ⭐ | Modern apps | 3,000/month | 2 min |
+| **Brevo** | High volume | 9,000/month | 5 min |
+| **Nodemailer** | Custom SMTP | Varies | 10 min |
+
+**Detailed setup:** See [EMAIL_SERVICE_SETUP.md](./EMAIL_SERVICE_SETUP.md)
 
 ## API Endpoints
 

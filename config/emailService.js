@@ -135,18 +135,33 @@ class EmailService {
    * Send email using Nodemailer (SMTP)
    */
   async sendWithNodemailer({ to, subject, text, html, from }) {
-    const mailOptions = {
-      from: `"Digital Menu" <${from}>`,
-      to: to,
-      subject: subject,
-      text: text,
-      html: html
-    };
+    try {
+      const mailOptions = {
+        from: `"Digital Menu" <${from}>`,
+        to: to,
+        subject: subject,
+        text: text,
+        html: html
+      };
 
-    const info = await this.transporter.sendMail(mailOptions);
-    
-    console.log('Email sent successfully via Nodemailer:', info.messageId);
-    return { success: true, messageId: info.messageId, provider: 'nodemailer' };
+      const info = await this.transporter.sendMail(mailOptions);
+      
+      console.log('Email sent successfully via Nodemailer:', info.messageId);
+      return { success: true, messageId: info.messageId, provider: 'nodemailer' };
+    } catch (error) {
+      console.error('Nodemailer error:', error.message);
+      
+      // Provide helpful error messages
+      if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+        throw new Error('SMTP connection timeout. Gmail SMTP may not work on cloud platforms like Render. Consider switching to Resend or Brevo.');
+      } else if (error.code === 'EAUTH') {
+        throw new Error('SMTP authentication failed. Check EMAIL_USER and EMAIL_PASSWORD.');
+      } else if (error.code === 'ECONNECTION') {
+        throw new Error('Cannot connect to SMTP server. Check EMAIL_HOST and EMAIL_PORT.');
+      }
+      
+      throw error;
+    }
   }
 
   /**
