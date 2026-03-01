@@ -167,6 +167,13 @@ exports.updatePaymentStatus = async (req, res) => {
         paymentMethod: bill.paymentMethod,
         tableNumber: bill.tableNumber
       });
+
+      // Also notify customer about payment confirmation
+      global.io.to(`customer_${bill.deviceId}`).emit('payment_received', {
+        billId: bill._id,
+        amount: bill.totalAmount,
+        paymentMethod: bill.paymentMethod
+      });
     }
     res.json({
       success: true,
