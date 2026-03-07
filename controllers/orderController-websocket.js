@@ -156,6 +156,22 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    // WebSocket notification to customer
+    if (global.io) {
+      global.io.to(`customer_${order.deviceId}`).emit('order_status_updated', {
+        orderId: order._id,
+        status: order.status,
+        estimatedReadyTime: order.estimatedReadyTime,
+        rejectionReason: order.rejectionReason
+      });
+      
+      // Also notify shop to update their order list and counts
+      global.io.to(`shop_${order.shopId}`).emit('order_status_updated', {
+        orderId: order._id,
+        status: order.status
+      });
+    }
+
     res.json({
       success: true,
       data: order,

@@ -196,9 +196,13 @@ const getShopAnalytics = async (req, res) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    console.log('=== GET SHOP ANALYTICS ===');
+    console.log('User ID:', req.user._id);
+
     const shop = await Shop.findOne({ ownerId: req.user._id });
     
     if (!shop) {
+      console.log('❌ Shop not found for user:', req.user._id);
       return res.status(404).json({ 
         message: 'Shop not found',
         debug: {
@@ -207,6 +211,12 @@ const getShopAnalytics = async (req, res) => {
         }
       });
     }
+    
+    console.log('Shop found:', shop.name);
+    console.log('Shop _id:', shop._id);
+    console.log('Shop ownerId:', shop.ownerId);
+    console.log('Current qrScans:', shop.qrScans);
+    console.log('Current menuViews:', shop.menuViews);
     
     // Calculate real percentage changes
     const currentScans = shop.qrScans || 0;
@@ -221,6 +231,9 @@ const getShopAnalytics = async (req, res) => {
     const viewsChange = lastWeekViews > 0 
       ? Math.round(((currentViews - lastWeekViews) / lastWeekViews) * 100)
       : currentViews > 0 ? 100 : 0;
+    
+    console.log('Returning totalScans:', currentScans);
+    console.log('=== GET SHOP ANALYTICS END ===');
     
     res.json({ 
       success: true, 
@@ -248,28 +261,47 @@ const getShopAnalytics = async (req, res) => {
 // @access  Public
 const incrementScan = async (req, res) => {
   try {
+    console.log('=== INCREMENT SCAN API CALLED ===');
+    console.log('Param ID (ownerId):', req.params.id);
+    
     const shop = await Shop.findOneAndUpdate(
       { ownerId: req.params.id },
       { $inc: { qrScans: 1 } },
       { new: true }
     );
     
+    console.log('Shop found:', shop ? 'YES' : 'NO');
+    if (shop) {
+      console.log('Shop ID:', shop._id);
+      console.log('Shop Name:', shop.name);
+      console.log('New qrScans count:', shop.qrScans);
+    }
+    
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found' });
+      console.log('❌ Shop not found with ownerId:', req.params.id);
+      return res.status(404).json({ 
+        message: 'Shop not found',
+        debug: { ownerId: req.params.id }
+      });
     }
 
     // Update daily analytics
     const DailyAnalytics = require('../models/DailyAnalytics');
     const today = new Date().toISOString().split('T')[0];
     
-    await DailyAnalytics.findOneAndUpdate(
+    const dailyAnalytics = await DailyAnalytics.findOneAndUpdate(
       { shopId: shop._id, date: today },
       { $inc: { scans: 1 } },
       { upsert: true, new: true }
     );
     
+    console.log('Daily analytics updated:', dailyAnalytics.scans);
+    console.log('✅ Scan increment successful');
+    console.log('=== INCREMENT SCAN API END ===');
+    
     res.json({ success: true, data: { scans: shop.qrScans } });
   } catch (error) {
+    console.error('❌ Increment scan error:', error);
     res.status(500).json({ message: error.message });
   }
 };
