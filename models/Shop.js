@@ -59,6 +59,10 @@ const shopSchema = new mongoose.Schema({
     enum: ['coral', 'ocean', 'forest', 'sunset', 'midnight', 'lavender'],
     default: 'coral'
   },
+  qrColor: {
+    type: String,
+    default: '#000000'
+  },
   rating: {
     type: Number,
     default: 4.8,

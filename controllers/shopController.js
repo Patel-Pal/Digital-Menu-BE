@@ -136,7 +136,7 @@ const createOrUpdateShopProfile = async (req, res) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const { description, logo, banner, address, phone, menuTheme, type } = req.body;
+    const { description, logo, banner, address, phone, menuTheme, type, qrColor } = req.body;
     const ownerId = req.user._id;
     
     // Use user's name and email from the logged-in user
@@ -152,7 +152,7 @@ const createOrUpdateShopProfile = async (req, res) => {
       console.log('Updating existing shop:', shop._id);
       shop = await Shop.findByIdAndUpdate(
         shop._id,
-        { name, description, logo, banner, address, phone, email, menuTheme, type },
+        { name, description, logo, banner, address, phone, email, menuTheme, type, qrColor },
         { new: true, runValidators: true }
       );
     } else {
