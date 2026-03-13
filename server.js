@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'https://digital-menu-builder.vercel.app','https://digital-menu-fe.vercel.app'],
+    origin: ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'https://digital-menu-builder.vercel.app','https://digital-menu-fe.vercel.app','https://digitalmenu.devinpro.co.in'],
     methods: ['GET', 'POST'],
     credentials: true
   }
