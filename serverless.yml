@@ -4,16 +4,21 @@ provider:
   name: aws
   runtime: nodejs18.x
   stage: ${opt:stage, 'dev'}
-  region: ${opt:region, 'us-east-1'}
+  region: ${opt:region, 'ap-south-1'}
+  memorySize: 512
+  timeout: 30
   environment:
     NODE_ENV: production
     MONGODB_URI: mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0
-    JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random
+    JWT_SECRET: your-super-secret-jwt-key-here
     JWT_EXPIRE: 30d
     CLOUDINARY_CLOUD_NAME: dfmvday8x
-    CLOUDINARY_API_KEY: 555552726469738
+    CLOUDINARY_API_KEY: "555552726469738"
     CLOUDINARY_API_SECRET: Qn2Yqbv6Cn2hzukZYIpnP1rBCCE
-  
+    EMAIL_PROVIDER: resend
+    EMAIL_FROM: noreply@devinpro.co.in
+    RESEND_API_KEY: re_gt7bKcSk_3eBJsgJvUGXpseKk1thu1Lh6
+
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -26,15 +31,35 @@ functions:
   api:
     handler: lambda.handler
     timeout: 30
+    memorySize: 512
     events:
-      - http:
-          path: /{proxy+}
-          method: ANY
-          cors: true
       - http:
           path: /
           method: ANY
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: true
+
+package:
+  patterns:
+    - '!node_modules/aws-sdk/**'
+    - '!.git/**'
+    - '!.serverless/**'
+    - '!*.md'
+    - '!debug-*.js'
+    - '!fix-*.js'
 
 plugins:
   - serverless-offline
@@ -42,3 +67,4 @@ plugins:
 custom:
   serverless-offline:
     httpPort: 5001
+    noPrependStageInUrl: true

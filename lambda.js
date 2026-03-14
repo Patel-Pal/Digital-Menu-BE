@@ -2,22 +2,32 @@ const serverless = require('serverless-http');
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('./config/database');
+const mongoose = require('mongoose');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 
+// Allowed origins
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://digital-menu-builder.vercel.app',
+  'https://digital-menu-fe.vercel.app',
+  'https://digitalmenu.devinpro.co.in'
+];
+
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'https://digital-menu-builder.vercel.app'],
+  origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -32,44 +42,55 @@ app.use('/api/billing', require('./routes/billing'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Digital Menu API is running on Lambda' });
+  res.json({
+    status: 'OK',
+    message: 'Digital Menu API is running on Lambda',
+    dbState: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
-// Hello endpoint
 app.get('/hello', (req, res) => {
   res.json({ message: 'Hello from Digital Menu API!' });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Unhandled error:', err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Connect to database once
+// Database connection with Lambda-optimized settings
 let isConnected = false;
 
 const connectToDatabase = async () => {
-  if (isConnected) {
+  if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
+
   try {
-    await connectDB();
+    await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 1,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false
+    });
     isConnected = true;
-    console.log('Database connected successfully');
+    console.log('MongoDB connected successfully');
   } catch (error) {
-    console.error('Database connection failed:', error);
-    // Don't throw error, let the app continue
+    console.error('MongoDB connection error:', error.message);
     isConnected = false;
+    throw error;
   }
 };
 
 // Lambda handler
-const handler = serverless(app);
+const handler = serverless(app, {
+  binary: ['image/*', 'application/octet-stream']
+});
 
 module.exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
-  
+
   try {
     await connectToDatabase();
     return handler(event, context);
@@ -79,8 +100,8 @@ module.exports.handler = async (event, context) => {
       statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE,PATCH'
       },
       body: JSON.stringify({ message: 'Internal server error' })
     };

@@ -16,6 +16,11 @@ class EmailService {
       case 'resend':
         // Resend will be used via API
         this.resendApiKey = process.env.RESEND_API_KEY;
+        // Warn if sandbox sender is used in production
+        const emailFrom = process.env.EMAIL_FROM || '';
+        if (emailFrom.endsWith('@resend.dev') && process.env.NODE_ENV === 'production') {
+          console.warn('⚠ WARNING: EMAIL_FROM is set to a Resend sandbox address (' + emailFrom + '). Sandbox senders can only deliver to the Resend account owner email. Update EMAIL_FROM to a verified domain sender (e.g., noreply@devinpro.co.in) for production use.');
+        }
         break;
       
       case 'brevo':
@@ -93,7 +98,8 @@ class EmailService {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Resend API error');
+      console.error('Resend API error [' + response.status + ']:', JSON.stringify(data));
+      throw new Error(data.message || 'Resend API error (status: ' + response.status + ')');
     }
 
     console.log('Email sent successfully via Resend:', data.id);
