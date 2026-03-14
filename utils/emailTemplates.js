@@ -17,7 +17,7 @@ Hello ${userName},
 
 Your OTP for password reset is: ${otp}
 
-This OTP will expire in 10 minutes.
+This OTP will expire in 3 minutes.
 
 If you did not request this, please ignore this email and your password will remain unchanged.
 
@@ -71,7 +71,7 @@ Digital Menu Team
                       ${otp}
                     </div>
                     <p style="margin: 16px 0 0; color: #6c757d; font-size: 14px;">
-                      This code expires in <strong>10 minutes</strong>
+                      This code expires in <strong>3 minutes</strong>
                     </p>
                   </td>
                 </tr>

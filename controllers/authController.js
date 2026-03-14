@@ -171,9 +171,9 @@ const forgotPassword = async (req, res) => {
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
 
-    // Set OTP and expiry (10 minutes from now)
+    // Set OTP and expiry (3 minutes from now)
     user.resetOtp = otp;
-    user.resetOtpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.resetOtpExpire = Date.now() + 3 * 60 * 1000; // 3 minutes
     await user.save();
 
     // Generate email content using template
