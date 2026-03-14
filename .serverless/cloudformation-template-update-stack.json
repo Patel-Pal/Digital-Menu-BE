@@ -171,7 +171,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/digital-menu-backend/dev/1773479180336-2026-03-14T09:06:20.336Z/digital-menu-backend.zip"
+          "S3Key": "serverless/digital-menu-backend/dev/1773479590122-2026-03-14T09:13:10.122Z/digital-menu-backend.zip"
         },
         "Handler": "lambda.handler",
         "Runtime": "nodejs18.x",
@@ -181,7 +181,7 @@
         "Environment": {
           "Variables": {
             "NODE_ENV": "production",
-            "MONGODB_URI": "mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0",
+            "MONGODB_URI": "mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu-live?retryWrites=true&w=majority&appName=Cluster0",
             "JWT_SECRET": "your-super-secret-jwt-key-here",
             "JWT_EXPIRE": "30d",
             "CLOUDINARY_CLOUD_NAME": "dfmvday8x",
@@ -203,7 +203,7 @@
         "ApiLogGroup"
       ]
     },
-    "ApiLambdaVersionVZ6RTK7hSnnHYAwf16gJ3HOI9qJxzUzecA16ba9tE": {
+    "ApiLambdaVersionphRp3lVQ1dtgztefos0QuoO6B1Wwsaxu4GNNlOM": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -432,7 +432,7 @@
         "ApiLambdaPermissionApiGateway"
       ]
     },
-    "ApiGatewayDeployment1773479161995": {
+    "ApiGatewayDeployment1773479555490": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
@@ -497,7 +497,7 @@
     "ApiLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiLambdaVersionVZ6RTK7hSnnHYAwf16gJ3HOI9qJxzUzecA16ba9tE"
+        "Ref": "ApiLambdaVersionphRp3lVQ1dtgztefos0QuoO6B1Wwsaxu4GNNlOM"
       },
       "Export": {
         "Name": "sls-digital-menu-backend-dev-ApiLambdaFunctionQualifiedArn"

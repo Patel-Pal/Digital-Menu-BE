@@ -9,7 +9,7 @@ provider:
   timeout: 30
   environment:
     NODE_ENV: production
-    MONGODB_URI: mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu?retryWrites=true&w=majority&appName=Cluster0
+    MONGODB_URI: mongodb+srv://pal:pal082004@cluster0.am7a6ou.mongodb.net/digital-menu-live?retryWrites=true&w=majority&appName=Cluster0
     JWT_SECRET: your-super-secret-jwt-key-here
     JWT_EXPIRE: 30d
     CLOUDINARY_CLOUD_NAME: dfmvday8x
