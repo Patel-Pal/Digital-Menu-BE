@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 
@@ -71,7 +72,7 @@ exports.getShopOrders = async (req, res) => {
 
     // Use aggregation to get counts efficiently in a single query
     const countsPromise = Order.aggregate([
-      { $match: { shopId } },
+      { $match: { shopId: new mongoose.Types.ObjectId(shopId) } },
       {
         $group: {
           _id: '$status',

@@ -63,6 +63,16 @@ const shopSchema = new mongoose.Schema({
     type: String,
     default: '#000000'
   },
+  qrSettings: {
+    bgColor: { type: String, default: '#ffffff' },
+    logoInQr: { type: Boolean, default: false },
+    style: { type: String, enum: ['squares', 'dots', 'rounded'], default: 'squares' },
+    frameText: { type: String, default: '' },
+    frameColor: { type: String, default: '#000000' },
+    fontSize: { type: Number, default: 14, min: 10, max: 24 },
+    fontStyle: { type: String, enum: ['normal', 'bold', 'italic', 'bold italic'], default: 'bold' },
+    fontFamily: { type: String, default: 'Inter' },
+  },
   rating: {
     type: Number,
     default: 4.8,

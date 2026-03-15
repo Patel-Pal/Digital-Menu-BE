@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Bill = require('../models/Bill');
 const Order = require('../models/Order');
 
@@ -227,6 +228,12 @@ exports.getShopBills = async (req, res) => {
     const filter = { shopId };
     if (status) filter.paymentStatus = status;
 
+    // Get counts by payment status
+    const countsPromise = Bill.aggregate([
+      { $match: { shopId: new mongoose.Types.ObjectId(shopId) } },
+      { $group: { _id: '$paymentStatus', count: { $sum: 1 } } }
+    ]);
+
     const bills = await Bill.find(filter)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -234,9 +241,17 @@ exports.getShopBills = async (req, res) => {
 
     const total = await Bill.countDocuments(filter);
 
+    const countsResult = await countsPromise;
+    const counts = { pending: 0, paid: 0, failed: 0, all: 0 };
+    countsResult.forEach(item => {
+      counts[item._id] = item.count;
+      counts.all += item.count;
+    });
+
     res.json({
       success: true,
       data: bills,
+      counts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
