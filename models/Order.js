@@ -33,6 +33,11 @@ const orderSchema = new mongoose.Schema({
     enum: ['unbilled', 'billed'],
     default: 'unbilled'
   },
+  waiterId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   billId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Bill',

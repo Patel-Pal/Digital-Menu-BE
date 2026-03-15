@@ -17,7 +17,11 @@ const getShops = async (req, res) => {
 // @access  Public
 const getShop = async (req, res) => {
   try {
-    const shop = await Shop.findOne({ ownerId: req.params.id }).populate('ownerId', 'name email');
+    // Try by ownerId first, then by shop _id (for waiters who have shopId)
+    let shop = await Shop.findOne({ ownerId: req.params.id }).populate('ownerId', 'name email');
+    if (!shop) {
+      shop = await Shop.findById(req.params.id).populate('ownerId', 'name email');
+    }
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }

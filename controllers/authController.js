@@ -53,7 +53,15 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Check if user account is deactivated
+    if (user.isActive === false) {
+      return res.status(401).json({ message: 'Account is deactivated. Contact your shopkeeper.' });
+    }
+
     const token = generateToken(user._id);
+
+    // For waiter role, shopId comes from user.shopId; for others, use user._id
+    const shopId = user.role === 'waiter' ? user.shopId : user._id;
 
     res.json({
       success: true,
@@ -63,7 +71,7 @@ const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        shopId: user._id // Use user's ObjectId as shopId for now
+        shopId: shopId
       }
     });
   } catch (error) {

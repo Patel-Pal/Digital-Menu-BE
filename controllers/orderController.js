@@ -5,7 +5,15 @@ const MenuItem = require('../models/MenuItem');
 // Create new order
 exports.createOrder = async (req, res) => {
   try {
-    const { shopId, customerName, tableNumber, orderNotes, deviceId, items } = req.body;
+    const { customerName, tableNumber, orderNotes, items } = req.body;
+    let { shopId, deviceId } = req.body;
+
+    // If authenticated waiter, use waiter's shopId and set waiterId
+    const isWaiter = req.user && req.user.role === 'waiter';
+    if (isWaiter) {
+      shopId = req.user.shopId;
+      deviceId = 'waiter_' + req.user._id;
+    }
 
     // Validate items and calculate total
     let totalAmount = 0;
@@ -35,7 +43,8 @@ exports.createOrder = async (req, res) => {
       orderNotes,
       deviceId,
       items: orderItems,
-      totalAmount
+      totalAmount,
+      ...(isWaiter && { waiterId: req.user._id })
     });
 
     await order.save();
@@ -68,11 +77,35 @@ exports.createOrder = async (req, res) => {
 exports.getShopOrders = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 20, waiterId } = req.query;
+
+    // Resolve both possible shopId values (ownerId and shop._id)
+    // Orders from customers use ownerId as shopId, waiter orders use shop._id
+    const Shop = require('../models/Shop');
+    const shopIds = [shopId];
+    
+    // If shopId is an ownerId, also include the actual shop._id
+    const shopByOwner = await Shop.findOne({ ownerId: shopId }).catch(() => null);
+    if (shopByOwner) {
+      shopIds.push(shopByOwner._id.toString());
+    }
+    
+    // If shopId is a shop._id, also include the ownerId
+    const shopById = await Shop.findById(shopId).catch(() => null);
+    if (shopById && shopById.ownerId) {
+      shopIds.push(shopById.ownerId.toString());
+    }
+
+    // Deduplicate
+    const uniqueShopIds = [...new Set(shopIds)].map(id => new mongoose.Types.ObjectId(id));
+
+    // Build match condition for aggregation
+    const matchCondition = { shopId: { $in: uniqueShopIds } };
+    if (waiterId) matchCondition.waiterId = new mongoose.Types.ObjectId(waiterId);
 
     // Use aggregation to get counts efficiently in a single query
     const countsPromise = Order.aggregate([
-      { $match: { shopId: new mongoose.Types.ObjectId(shopId) } },
+      { $match: matchCondition },
       {
         $group: {
           _id: '$status',
@@ -82,11 +115,13 @@ exports.getShopOrders = async (req, res) => {
     ]);
 
     // Get filtered orders for current tab
-    const filter = { shopId };
+    const filter = { shopId: { $in: uniqueShopIds } };
+    if (waiterId) filter.waiterId = waiterId;
     if (status && status !== 'all') filter.status = status;
 
     const ordersPromise = Order.find(filter)
       .populate('items.menuItemId')
+      .populate('waiterId', 'name')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip((page - 1) * parseInt(limit));
@@ -137,6 +172,20 @@ exports.updateOrderStatus = async (req, res) => {
     const { orderId } = req.params;
     const { status, estimatedReadyTime, rejectionReason } = req.body;
 
+    // If waiter, only allow setting status to 'completed' on 'approved' orders
+    if (req.user && req.user.role === 'waiter') {
+      if (status !== 'completed') {
+        return res.status(400).json({ message: 'Waiters can only mark orders as completed' });
+      }
+      const existingOrder = await Order.findById(orderId);
+      if (!existingOrder) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      if (existingOrder.status !== 'approved') {
+        return res.status(400).json({ message: 'Only approved orders can be marked as completed' });
+      }
+    }
+
     const updateData = { status };
     
     if (status === 'approved' && estimatedReadyTime) {
@@ -155,6 +204,18 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Emit WebSocket event for order status update
+    if (global.io) {
+      global.io.to(`shop_${order.shopId}`).emit('order_status_updated', {
+        orderId: order._id,
+        status: order.status,
+        tableNumber: order.tableNumber,
+        customerName: order.customerName,
+        totalAmount: order.totalAmount,
+        updatedAt: order.updatedAt
+      });
     }
 
     res.json({

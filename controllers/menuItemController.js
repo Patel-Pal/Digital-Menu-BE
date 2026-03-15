@@ -6,10 +6,26 @@ const Category = require('../models/Category');
 // @access  Public
 const getMenuItemsByShop = async (req, res) => {
   try {
-    const menuItems = await MenuItem.find({ 
-      shopId: req.params.shopId,
+    let shopId = req.params.shopId;
+    
+    // Try fetching with the given shopId first
+    let menuItems = await MenuItem.find({ 
+      shopId: shopId,
       isActive: true 
     }).populate('categoryId', 'name icon');
+    
+    // If no items found, the shopId might be the Shop document _id
+    // while items are stored with ownerId. Look up the shop and try ownerId.
+    if (menuItems.length === 0) {
+      const Shop = require('../models/Shop');
+      const shop = await Shop.findById(shopId).catch(() => null);
+      if (shop && shop.ownerId) {
+        menuItems = await MenuItem.find({ 
+          shopId: shop.ownerId,
+          isActive: true 
+        }).populate('categoryId', 'name icon');
+      }
+    }
     
     res.json({ success: true, data: menuItems });
   } catch (error) {
