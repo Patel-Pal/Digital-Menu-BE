@@ -5,10 +5,25 @@ const Category = require('../models/Category');
 // @access  Public
 const getCategoriesByShop = async (req, res) => {
   try {
-    const categories = await Category.find({ 
-      shopId: req.params.shopId,
+    let shopId = req.params.shopId;
+    
+    let categories = await Category.find({ 
+      shopId: shopId,
       isActive: true 
     }).sort({ order: 1 });
+    
+    // If no categories found, shopId might be the Shop _id while
+    // categories are stored with ownerId. Look up shop and try ownerId.
+    if (categories.length === 0) {
+      const Shop = require('../models/Shop');
+      const shop = await Shop.findById(shopId).catch(() => null);
+      if (shop && shop.ownerId) {
+        categories = await Category.find({ 
+          shopId: shop.ownerId,
+          isActive: true 
+        }).sort({ order: 1 });
+      }
+    }
     
     res.json({ success: true, data: categories });
   } catch (error) {

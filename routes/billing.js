@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const billingController = require('../controllers/billingController');
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 
-// Public routes (for customers)
-router.post('/generate', billingController.generateBill);
+// Public routes (for customers), with optional auth for waiters
+router.post('/generate', optionalAuth, billingController.generateBill);
 router.get('/customer/:deviceId', billingController.getCustomerBills);
 router.get('/:billId', billingController.getBill);
 

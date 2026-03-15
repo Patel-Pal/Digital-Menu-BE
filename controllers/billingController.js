@@ -2,27 +2,29 @@ const mongoose = require('mongoose');
 const Bill = require('../models/Bill');
 const Order = require('../models/Order');
 
-// Generate bill for customer
+// Generate bill for customer or waiter
 exports.generateBill = async (req, res) => {
   try {
     const { customerName, deviceId, shopId, tableNumber } = req.body;
 
-    // Find all unbilled orders for this customer (any status except rejected)
-    // Try with both customerName and deviceId, then fallback to just deviceId
-    let unbilledOrders = await Order.find({
-      customerName,
-      deviceId,
-      shopId,
-      status: { $ne: 'rejected' }, // Any status except rejected
-      $or: [
-        { billingStatus: 'unbilled' },
-        { billingStatus: { $exists: false } } // For existing orders without billingStatus
-      ]
-    }).populate('items.menuItemId');
+    let unbilledOrders;
+    const isWaiter = req.user && req.user.role === 'waiter';
 
-    // If no orders found with exact customer name, try with just deviceId and shopId
-    if (unbilledOrders.length === 0) {
+    if (isWaiter) {
+      // Waiter flow: find all unbilled completed orders for the table, regardless of deviceId
       unbilledOrders = await Order.find({
+        shopId,
+        tableNumber,
+        status: 'completed',
+        $or: [
+          { billingStatus: 'unbilled' },
+          { billingStatus: { $exists: false } }
+        ]
+      }).populate('items.menuItemId');
+    } else {
+      // Customer flow: find unbilled orders by customerName + deviceId + shopId
+      unbilledOrders = await Order.find({
+        customerName,
         deviceId,
         shopId,
         status: { $ne: 'rejected' },
@@ -31,6 +33,19 @@ exports.generateBill = async (req, res) => {
           { billingStatus: { $exists: false } }
         ]
       }).populate('items.menuItemId');
+
+      // Fallback to just deviceId and shopId
+      if (unbilledOrders.length === 0) {
+        unbilledOrders = await Order.find({
+          deviceId,
+          shopId,
+          status: { $ne: 'rejected' },
+          $or: [
+            { billingStatus: 'unbilled' },
+            { billingStatus: { $exists: false } }
+          ]
+        }).populate('items.menuItemId');
+      }
     }
 
     if (unbilledOrders.length === 0) {
@@ -73,33 +88,43 @@ exports.generateBill = async (req, res) => {
     const taxAmount = subtotal * taxRate;
     const totalAmount = subtotal + taxAmount;
 
+    // For waiter-initiated bills, derive customerName and deviceId from orders
+    const billCustomerName = isWaiter
+      ? (customerName || unbilledOrders[0].customerName)
+      : customerName;
+    const billDeviceId = isWaiter
+      ? `waiter_${req.user._id}`
+      : deviceId;
+
     // Create bill
     const bill = new Bill({
       shopId,
-      customerName,
-      deviceId,
+      customerName: billCustomerName,
+      deviceId: billDeviceId,
       tableNumber,
       orderIds,
       items: consolidatedItems,
       subtotal,
       taxAmount,
       totalAmount,
-      paymentMethod: 'cash', // Default payment method
-      paymentStatus: 'pending' // Always start as pending for shopkeeper processing
+      paymentMethod: 'cash',
+      paymentStatus: 'pending'
     });
 
     await bill.save();
 
     // WebSocket notifications
     if (global.io) {
-      // Notify customer
-      global.io.to(`customer_${deviceId}`).emit('bill_generated', {
-        billId: bill._id,
-        totalAmount: bill.totalAmount,
-        items: bill.items,
-        customerName: bill.customerName,
-        tableNumber: bill.tableNumber
-      });
+      // Notify customer (only for customer-initiated bills)
+      if (!isWaiter && deviceId) {
+        global.io.to(`customer_${deviceId}`).emit('bill_generated', {
+          billId: bill._id,
+          totalAmount: bill.totalAmount,
+          items: bill.items,
+          customerName: bill.customerName,
+          tableNumber: bill.tableNumber
+        });
+      }
       
       // Notify shop
       global.io.to(`shop_${shopId}`).emit('bill_generated', {
@@ -225,12 +250,24 @@ exports.getShopBills = async (req, res) => {
     const { shopId } = req.params;
     const { status, page = 1, limit = 20 } = req.query;
 
-    const filter = { shopId };
+    // Resolve both possible shopId values (ownerId and shop._id)
+    const Shop = require('../models/Shop');
+    const shopIds = [shopId];
+    
+    const shopByOwner = await Shop.findOne({ ownerId: shopId }).catch(() => null);
+    if (shopByOwner) shopIds.push(shopByOwner._id.toString());
+    
+    const shopById = await Shop.findById(shopId).catch(() => null);
+    if (shopById && shopById.ownerId) shopIds.push(shopById.ownerId.toString());
+
+    const uniqueShopIds = [...new Set(shopIds)].map(id => new mongoose.Types.ObjectId(id));
+
+    const filter = { shopId: { $in: uniqueShopIds } };
     if (status) filter.paymentStatus = status;
 
     // Get counts by payment status
     const countsPromise = Bill.aggregate([
-      { $match: { shopId: new mongoose.Types.ObjectId(shopId) } },
+      { $match: { shopId: { $in: uniqueShopIds } } },
       { $group: { _id: '$paymentStatus', count: { $sum: 1 } } }
     ]);
 
@@ -305,13 +342,25 @@ exports.getBillingAnalytics = async (req, res) => {
     const { shopId } = req.params;
     const { period = 'daily', days = 30 } = req.query;
 
+    // Resolve both possible shopId values
+    const Shop = require('../models/Shop');
+    const shopIds = [shopId];
+    
+    const shopByOwner = await Shop.findOne({ ownerId: shopId }).catch(() => null);
+    if (shopByOwner) shopIds.push(shopByOwner._id.toString());
+    
+    const shopById = await Shop.findById(shopId).catch(() => null);
+    if (shopById && shopById.ownerId) shopIds.push(shopById.ownerId.toString());
+
+    const uniqueShopIds = [...new Set(shopIds)];
+
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - parseInt(days));
 
     // Get all bills for the period
     const bills = await Bill.find({
-      shopId,
+      shopId: { $in: uniqueShopIds },
       createdAt: { $gte: startDate, $lte: endDate }
     }).sort({ createdAt: 1 });
 

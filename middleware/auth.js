@@ -39,4 +39,24 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { auth, authorize };
+const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (user && user._id) {
+      req.user = user;
+    }
+  } catch (error) {
+    // Token invalid or expired — proceed without auth
+  }
+  next();
+};
+
+module.exports = { auth, authorize, optionalAuth };
