@@ -324,8 +324,188 @@ Digital Menu Team
   return { subject, text, html };
 };
 
+/**
+ * Contact form acknowledgment email to the user
+ * @param {string} userName - User's name
+ * @returns {Object} - { subject, text, html }
+ */
+const contactAcknowledgmentTemplate = (userName) => {
+  const subject = 'Thank You for Contacting Digital Menu';
+
+  const text = `
+Dear ${userName},
+
+Thank you for reaching out to Digital Menu. We have received your message and our team is reviewing it.
+
+We typically respond within 24 hours during business days. In the meantime, feel free to explore our platform and discover how Digital Menu can transform your restaurant's dining experience.
+
+If your inquiry is urgent, please don't hesitate to call us directly.
+
+Warm regards,
+The Digital Menu Team
+  `.trim();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank You for Contacting Us</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+              <div style="font-size: 64px; margin-bottom: 16px;">📩</div>
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
+                Thank You for Reaching Out!
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 24px; color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+                Dear <strong>${userName}</strong>,
+              </p>
+              <p style="margin: 0 0 24px; color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+                Thank you for contacting Digital Menu. We have successfully received your message and our team is already reviewing it.
+              </p>
+              <p style="margin: 0 0 24px; color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+                We typically respond within <strong>24 hours</strong> during business days. Rest assured, your inquiry is important to us and we will get back to you as soon as possible.
+              </p>
+              <div style="padding: 20px; background-color: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; margin: 0 0 24px;">
+                <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.5;">
+                  In the meantime, explore how Digital Menu can transform your restaurant's dining experience with QR code menus, real-time analytics, and more.
+                </p>
+              </div>
+              <p style="margin: 0; color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+                Warm regards,<br><strong>The Digital Menu Team</strong>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 40px; background-color: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
+              <p style="margin: 0 0 12px; color: #6c757d; font-size: 14px; text-align: center;">
+                This is an automated message from Digital Menu. Please do not reply to this email.
+              </p>
+              <p style="margin: 0; color: #adb5bd; font-size: 12px; text-align: center;">
+                &copy; ${new Date().getFullYear()} Digital Menu. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return { subject, text, html };
+};
+
+/**
+ * Contact form notification email to admin
+ * @param {Object} details - { name, email, message }
+ * @returns {Object} - { subject, text, html }
+ */
+const contactNotificationTemplate = ({ name, email, message }) => {
+  const subject = `New Contact Inquiry from ${name} - Digital Menu`;
+
+  const text = `
+New Contact Form Submission
+
+Name: ${name}
+Email: ${email}
+Message: ${message}
+
+Submitted at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+
+Please respond to this inquiry at your earliest convenience.
+  `.trim();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Contact Inquiry</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); border-radius: 12px 12px 0 0;">
+              <div style="font-size: 64px; margin-bottom: 16px;">📬</div>
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
+                New Contact Inquiry
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 24px; color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+                You have received a new contact form submission on Digital Menu.
+              </p>
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 24px; border: 1px solid #e9ecef; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 16px 20px; background-color: #f8f9fa; font-weight: 600; color: #495057; width: 120px; border-bottom: 1px solid #e9ecef;">Name</td>
+                  <td style="padding: 16px 20px; color: #212529; border-bottom: 1px solid #e9ecef;">${name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 16px 20px; background-color: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 1px solid #e9ecef;">Email</td>
+                  <td style="padding: 16px 20px; color: #212529; border-bottom: 1px solid #e9ecef;">
+                    <a href="mailto:${email}" style="color: #3b82f6; text-decoration: none;">${email}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 16px 20px; background-color: #f8f9fa; font-weight: 600; color: #495057; vertical-align: top;">Message</td>
+                  <td style="padding: 16px 20px; color: #212529; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</td>
+                </tr>
+              </table>
+              <p style="margin: 0 0 8px; color: #6c757d; font-size: 13px;">
+                <strong>Submitted at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+              </p>
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0 0;">
+                <tr>
+                  <td align="center">
+                    <a href="mailto:${email}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                      Reply to ${name}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 40px; background-color: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
+              <p style="margin: 0; color: #adb5bd; font-size: 12px; text-align: center;">
+                &copy; ${new Date().getFullYear()} Digital Menu. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return { subject, text, html };
+};
+
 module.exports = {
   otpEmailTemplate,
   passwordResetConfirmationTemplate,
-  welcomeEmailTemplate
+  welcomeEmailTemplate,
+  contactAcknowledgmentTemplate,
+  contactNotificationTemplate
 };

@@ -16,7 +16,8 @@ const {
   updateContact,
   deleteContact,
   setActiveContact,
-  createOrUpdateContact 
+  createOrUpdateContact,
+  submitContactForm
 } = require('../controllers/contactController');
 const { auth, authorize } = require('../middleware/auth');
 
@@ -42,6 +43,7 @@ router.get('/subscriptions', auth, authorize('admin'), getSubscriptions);
 
 // Contact Info
 router.get('/contact', getContactInfo);
+router.post('/contact/submit', submitContactForm); // Public - contact form submission
 router.get('/contact/all', auth, authorize('admin', 'shopkeeper'), getAllContactInfo);
 router.post('/contact', auth, authorize('admin', 'shopkeeper'), createOrUpdateContact);
 router.post('/contact/new', auth, authorize('admin', 'shopkeeper'), createContact);
