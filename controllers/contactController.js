@@ -1,4 +1,8 @@
 const ContactInfo = require('../models/ContactInfo');
+const emailService = require('../config/emailService');
+const { contactAcknowledgmentTemplate, contactNotificationTemplate } = require('../utils/emailTemplates');
+
+const ADMIN_EMAIL = 'patelpal.93130@gmail.com';
 
 // @desc    Get contact info
 // @route   GET /api/admin/contact
@@ -133,6 +137,50 @@ const createOrUpdateContact = async (req, res) => {
   }
 };
 
+// @desc    Submit contact form (sends emails to user + admin)
+// @route   POST /api/admin/contact/submit
+// @access  Public
+const submitContactForm = async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ success: false, message: 'Please provide name, email, and message' });
+    }
+
+    // Send acknowledgment email to the user
+    try {
+      const ackEmail = contactAcknowledgmentTemplate(name);
+      await emailService.sendEmail({
+        to: email,
+        subject: ackEmail.subject,
+        text: ackEmail.text,
+        html: ackEmail.html
+      });
+    } catch (emailErr) {
+      console.error('Failed to send acknowledgment email:', emailErr);
+    }
+
+    // Send notification email to admin
+    try {
+      const notifEmail = contactNotificationTemplate({ name, email, message });
+      await emailService.sendEmail({
+        to: ADMIN_EMAIL,
+        subject: notifEmail.subject,
+        text: notifEmail.text,
+        html: notifEmail.html
+      });
+    } catch (emailErr) {
+      console.error('Failed to send admin notification email:', emailErr);
+    }
+
+    res.status(200).json({ success: true, message: 'Your message has been sent successfully. We will get back to you soon!' });
+  } catch (error) {
+    console.error('Contact form submission error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send message. Please try again later.' });
+  }
+};
+
 module.exports = { 
   getContactInfo, 
   getAllContactInfo,
@@ -140,5 +188,6 @@ module.exports = {
   updateContact,
   deleteContact,
   setActiveContact,
-  createOrUpdateContact 
+  createOrUpdateContact,
+  submitContactForm
 };
