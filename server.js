@@ -47,7 +47,7 @@ io.on('connection', (socket) => {
 app.use(cors({
   origin: ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'https://digital-menu-builder.vercel.app','https://digital-menu-fe.vercel.app','https://digitalmenu.devinpro.co.in'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
@@ -65,6 +65,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api', require('./routes/waiters'));
+app.use('/api', require('./routes/chefs'));
 
 // Health check
 app.get('/api/health', (req, res) => {

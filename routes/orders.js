@@ -8,8 +8,8 @@ router.post('/', optionalAuth, orderController.createOrder);
 router.get('/customer/:deviceId', orderController.getCustomerOrders);
 
 // Protected routes (for shop owners and waiters)
-router.get('/shop/:shopId', auth, authorize('shopkeeper', 'waiter'), orderController.getShopOrders);
-router.put('/:orderId/status', auth, authorize('shopkeeper', 'waiter'), orderController.updateOrderStatus);
+router.get('/shop/:shopId', auth, authorize('shopkeeper', 'waiter', 'chef'), orderController.getShopOrders);
+router.put('/:orderId/status', auth, authorize('shopkeeper', 'waiter', 'chef'), orderController.updateOrderStatus);
 
 // Single order route (should be last to avoid conflicts)
 router.get('/:orderId', orderController.getOrder);
