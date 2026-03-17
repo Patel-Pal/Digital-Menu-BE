@@ -60,8 +60,8 @@ const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // For waiter role, shopId comes from user.shopId; for others, use user._id
-    const shopId = user.role === 'waiter' ? user.shopId : user._id;
+    // For waiter/chef roles, shopId comes from user.shopId; for others, use user._id
+    const shopId = (user.role === 'waiter' || user.role === 'chef') ? user.shopId : user._id;
 
     res.json({
       success: true,
