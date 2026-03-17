@@ -63,6 +63,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/billing', require('./routes/billing'));
+app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api', require('./routes/waiters'));
 app.use('/api', require('./routes/chefs'));
 
