@@ -208,14 +208,24 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Emit WebSocket event for order status update
     if (global.io) {
-      global.io.to(`shop_${order.shopId}`).emit('order_status_updated', {
+      const statusPayload = {
         orderId: order._id,
         status: order.status,
         tableNumber: order.tableNumber,
         customerName: order.customerName,
         totalAmount: order.totalAmount,
+        estimatedReadyTime: order.estimatedReadyTime,
+        rejectionReason: order.rejectionReason,
         updatedAt: order.updatedAt
-      });
+      };
+
+      // Notify shop dashboard
+      global.io.to(`shop_${order.shopId}`).emit('order_status_updated', statusPayload);
+
+      // Notify customer so their pending orders update in real time
+      if (order.deviceId) {
+        global.io.to(`customer_${order.deviceId}`).emit('order_status_updated', statusPayload);
+      }
     }
 
     res.json({
