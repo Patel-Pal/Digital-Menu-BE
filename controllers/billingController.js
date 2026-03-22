@@ -1,17 +1,18 @@
 const mongoose = require('mongoose');
 const Bill = require('../models/Bill');
 const Order = require('../models/Order');
+const DiscountConfig = require('../models/DiscountConfig');
+const DiscountReward = require('../models/DiscountReward');
 
 // Generate bill for customer or waiter
 exports.generateBill = async (req, res) => {
   try {
-    const { customerName, deviceId, shopId, tableNumber } = req.body;
+    const { customerName, deviceId, shopId, tableNumber, rewardId, couponCode } = req.body;
 
     let unbilledOrders;
     const isWaiter = req.user && req.user.role === 'waiter';
 
     if (isWaiter) {
-      // Waiter flow: find all unbilled completed orders for the table, regardless of deviceId
       unbilledOrders = await Order.find({
         shopId,
         tableNumber,
@@ -22,7 +23,6 @@ exports.generateBill = async (req, res) => {
         ]
       }).populate('items.menuItemId');
     } else {
-      // Customer flow: find unbilled orders by customerName + deviceId + shopId
       unbilledOrders = await Order.find({
         customerName,
         deviceId,
@@ -34,7 +34,6 @@ exports.generateBill = async (req, res) => {
         ]
       });
 
-      // Fallback to just deviceId and shopId
       if (unbilledOrders.length === 0) {
         unbilledOrders = await Order.find({
           deviceId,
@@ -87,18 +86,96 @@ exports.generateBill = async (req, res) => {
       });
     });
 
-    // Calculate tax (assuming 5% GST)
-    const taxRate = 0.05;
-    const taxAmount = subtotal * taxRate;
-    const totalAmount = subtotal + taxAmount;
+    // --- Discount resolution ---
+    // Priority: Coupon Code > Spin/Scratch reward > Happy Hour > Loyalty reward
+    let discountAmount = 0;
+    let discountType = null;
+    let discountDescription = '';
+    let appliedCouponCode = null;
+    let appliedReward = null;
 
-    // For waiter-initiated bills, derive customerName and deviceId from orders
+    try {
+      const config = await DiscountConfig.findOne({ shopId });
+
+      if (couponCode && config && config.couponCode && config.couponCode.enabled) {
+        // Priority 1: Coupon Code
+        const coupon = config.couponCode.coupons.find(
+          c => c.code.toLowerCase() === couponCode.toLowerCase()
+        );
+
+        if (coupon && coupon.isActive && new Date() <= new Date(coupon.expiryDate) &&
+            coupon.currentUsage < coupon.maxUsage && subtotal >= coupon.minOrderAmount) {
+          if (coupon.discountType === 'percentage') {
+            discountAmount = subtotal * coupon.discountValue / 100;
+          } else {
+            discountAmount = Math.min(coupon.discountValue, subtotal);
+          }
+          discountType = 'coupon';
+          discountDescription = `Coupon ${coupon.code}: ${coupon.discountValue}${coupon.discountType === 'percentage' ? '%' : '₹'} Off`;
+          appliedCouponCode = coupon.code;
+        }
+      }
+
+      if (!discountType && rewardId) {
+        // Priority 2 & 4: Spin/Scratch reward or Loyalty reward
+        const reward = await DiscountReward.findById(rewardId);
+
+        if (reward && reward.deviceId === (isWaiter ? `waiter_${req.user._id}` : deviceId) &&
+            reward.status === 'available' &&
+            (!reward.expiresAt || new Date() < new Date(reward.expiresAt))) {
+          
+          if (reward.rewardType === 'percentage') {
+            discountAmount = subtotal * reward.rewardValue / 100;
+          } else if (reward.rewardType === 'flat') {
+            discountAmount = Math.min(reward.rewardValue, subtotal);
+          }
+          // freeItem type: treat as flat with the rewardValue
+          if (reward.rewardType === 'freeItem') {
+            discountAmount = Math.min(reward.rewardValue, subtotal);
+          }
+
+          discountType = reward.type === 'loyalty' ? 'loyalty' : reward.type;
+          discountDescription = reward.label || `${reward.rewardValue}${reward.rewardType === 'percentage' ? '%' : '₹'} Off`;
+          appliedReward = reward;
+        }
+      }
+
+      if (!discountType && config && config.happyHour && config.happyHour.enabled) {
+        // Priority 3: Happy Hour (auto-detected)
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        if (config.happyHour.applicableDays &&
+            config.happyHour.applicableDays.includes(currentDay) &&
+            config.happyHour.startTime && config.happyHour.endTime &&
+            currentTime >= config.happyHour.startTime &&
+            currentTime < config.happyHour.endTime) {
+          discountAmount = subtotal * config.happyHour.discountPercentage / 100;
+          discountType = 'happy_hour';
+          discountDescription = `Happy Hour: ${config.happyHour.discountPercentage}% Off`;
+        }
+      }
+    } catch (discountError) {
+      console.error('Discount application error:', discountError);
+      // Fallback: generate bill without discount
+      discountAmount = 0;
+      discountType = null;
+      discountDescription = '';
+      appliedCouponCode = null;
+      appliedReward = null;
+    }
+
+    // Calculate final amounts
+    const discountedSubtotal = subtotal - discountAmount;
+    const taxRate = 0.05;
+    const taxAmount = discountedSubtotal * taxRate;
+    const totalAmount = discountedSubtotal + taxAmount;
+
+    const billDeviceId = isWaiter ? `waiter_${req.user._id}` : deviceId;
     const billCustomerName = isWaiter
       ? (customerName || unbilledOrders[0].customerName)
       : customerName;
-    const billDeviceId = isWaiter
-      ? `waiter_${req.user._id}`
-      : deviceId;
 
     // Create bill
     const bill = new Bill({
@@ -111,15 +188,37 @@ exports.generateBill = async (req, res) => {
       subtotal,
       taxAmount,
       totalAmount,
+      discountType: discountType || undefined,
+      discountValue: discountAmount,
+      discountDescription,
+      couponCode: appliedCouponCode,
       paymentMethod: 'cash',
       paymentStatus: 'pending'
     });
 
     await bill.save();
 
+    // Post-save: mark reward as redeemed, increment coupon usage
+    try {
+      if (appliedReward) {
+        appliedReward.status = 'redeemed';
+        appliedReward.redeemedAt = new Date();
+        appliedReward.billId = bill._id;
+        await appliedReward.save();
+      }
+
+      if (appliedCouponCode) {
+        await DiscountConfig.findOneAndUpdate(
+          { shopId, 'couponCode.coupons.code': appliedCouponCode },
+          { $inc: { 'couponCode.coupons.$.currentUsage': 1 } }
+        );
+      }
+    } catch (postSaveError) {
+      console.error('Post-save discount update error:', postSaveError);
+    }
+
     // WebSocket notifications
     if (global.io) {
-      // Notify customer (only for customer-initiated bills)
       if (!isWaiter && deviceId) {
         global.io.to(`customer_${deviceId}`).emit('bill_generated', {
           billId: bill._id,
@@ -130,7 +229,6 @@ exports.generateBill = async (req, res) => {
         });
       }
       
-      // Notify shop
       global.io.to(`shop_${shopId}`).emit('bill_generated', {
         billId: bill._id,
         customerName: bill.customerName,
@@ -188,6 +286,55 @@ exports.updatePaymentStatus = async (req, res) => {
         message: 'Bill not found' 
       });
     }
+
+    // Loyalty stamp increment when bill is paid
+    if (paymentStatus === 'paid') {
+      try {
+        const config = await DiscountConfig.findOne({ shopId: bill.shopId });
+        if (config && config.loyaltyCard && config.loyaltyCard.enabled) {
+          let progress = await DiscountReward.findOne({
+            shopId: bill.shopId,
+            deviceId: bill.deviceId,
+            type: 'loyalty_progress'
+          });
+
+          if (!progress) {
+            progress = await DiscountReward.create({
+              shopId: bill.shopId,
+              deviceId: bill.deviceId,
+              type: 'loyalty_progress',
+              currentStamps: 0,
+              stampsRequired: config.loyaltyCard.stampsRequired,
+              status: 'available'
+            });
+          }
+
+          progress.currentStamps += 1;
+
+          if (progress.currentStamps >= config.loyaltyCard.stampsRequired) {
+            // Create loyalty reward
+            await DiscountReward.create({
+              shopId: bill.shopId,
+              deviceId: bill.deviceId,
+              type: 'loyalty',
+              label: `Loyalty Reward: ${config.loyaltyCard.rewardValue}${config.loyaltyCard.rewardType === 'percentage' ? '%' : '₹'} Off`,
+              rewardType: config.loyaltyCard.rewardType,
+              rewardValue: config.loyaltyCard.rewardValue,
+              status: 'available'
+            });
+
+            // Reset stamps
+            progress.currentStamps = 0;
+          }
+
+          await progress.save();
+        }
+      } catch (loyaltyError) {
+        console.error('Loyalty stamp increment error:', loyaltyError);
+        // Don't fail the payment update if loyalty fails
+      }
+    }
+
     // WebSocket notification to shopkeeper when payment is received
     if (global.io && paymentStatus === 'paid') {
       global.io.to(`shop_${bill.shopId}`).emit('payment_received', {

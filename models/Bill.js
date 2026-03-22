@@ -33,6 +33,14 @@ const billSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true },
   taxAmount: { type: Number, default: 0 },
   totalAmount: { type: Number, required: true },
+  discountType: {
+    type: String,
+    enum: ['spin_win', 'scratch_card', 'coupon', 'happy_hour', 'loyalty'],
+    default: null
+  },
+  discountValue: { type: Number, default: 0 },
+  discountDescription: { type: String, default: '' },
+  couponCode: { type: String, default: null },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed'],
