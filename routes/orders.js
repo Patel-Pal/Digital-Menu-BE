@@ -8,6 +8,7 @@ router.post('/', optionalAuth, orderController.createOrder);
 router.get('/customer/:deviceId', orderController.getCustomerOrders);
 
 // Protected routes (for shop owners and waiters)
+router.get('/shop/:shopId/tables', auth, authorize('shopkeeper'), orderController.getTableAggregation);
 router.get('/shop/:shopId', auth, authorize('shopkeeper', 'waiter', 'chef'), orderController.getShopOrders);
 router.put('/:orderId/status', auth, authorize('shopkeeper', 'waiter', 'chef'), orderController.updateOrderStatus);
 

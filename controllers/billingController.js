@@ -32,7 +32,7 @@ exports.generateBill = async (req, res) => {
           { billingStatus: 'unbilled' },
           { billingStatus: { $exists: false } }
         ]
-      }).populate('items.menuItemId');
+      });
 
       // Fallback to just deviceId and shopId
       if (unbilledOrders.length === 0) {
@@ -44,7 +44,7 @@ exports.generateBill = async (req, res) => {
             { billingStatus: 'unbilled' },
             { billingStatus: { $exists: false } }
           ]
-        }).populate('items.menuItemId');
+        });
       }
     }
 
@@ -63,8 +63,12 @@ exports.generateBill = async (req, res) => {
     unbilledOrders.forEach(order => {
       orderIds.push(order._id);
       order.items.forEach(item => {
+        const itemKey = item.menuItemId ? item.menuItemId.toString() : item.name;
         const existingItem = consolidatedItems.find(
-          ci => ci.menuItemId.toString() === item.menuItemId.toString()
+          ci => {
+            const ciKey = ci.menuItemId ? ci.menuItemId.toString() : ci.name;
+            return ciKey === itemKey;
+          }
         );
         
         if (existingItem) {
@@ -72,7 +76,7 @@ exports.generateBill = async (req, res) => {
           existingItem.totalPrice += item.price * item.quantity;
         } else {
           consolidatedItems.push({
-            menuItemId: item.menuItemId,
+            menuItemId: item.menuItemId || undefined,
             name: item.name,
             price: item.price,
             quantity: item.quantity,

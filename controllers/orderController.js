@@ -285,3 +285,106 @@ exports.getOrder = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch order', error: error.message });
   }
 };
+
+// Get table aggregation for a shop
+exports.getTableAggregation = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { showAll } = req.query;
+
+    // Resolve both possible shopId values (ownerId and shop._id)
+    // Same pattern as getShopOrders
+    const Shop = require('../models/Shop');
+    const shopIds = [shopId];
+
+    const shopByOwner = await Shop.findOne({ ownerId: shopId }).catch(() => null);
+    if (shopByOwner) {
+      shopIds.push(shopByOwner._id.toString());
+    }
+
+    const shopById = await Shop.findById(shopId).catch(() => null);
+    if (shopById && shopById.ownerId) {
+      shopIds.push(shopById.ownerId.toString());
+    }
+
+    const uniqueShopIds = [...new Set(shopIds)].map(id => new mongoose.Types.ObjectId(id));
+
+    const statusFilter = showAll === 'true' ? {} : { status: { $in: ['pending', 'approved'] } };
+
+    const pipeline = [
+      // 1. Match orders for this shop (only active statuses unless showAll)
+      { $match: { shopId: { $in: uniqueShopIds }, ...statusFilter } },
+
+      // 2. Sort by createdAt descending (newest first within each group)
+      { $sort: { createdAt: -1 } },
+
+      // 3. Group by tableNumber
+      {
+        $group: {
+          _id: '$tableNumber',
+          customerName: { $first: '$customerName' },
+          orders: { $push: '$$ROOT' },
+          totalAmount: { $sum: '$totalAmount' },
+          firstOrderTime: { $min: '$createdAt' },
+          statuses: { $push: '$status' },
+          billingStatuses: { $push: '$billingStatus' }
+        }
+      },
+
+      // 4. Lookup associated bills
+      {
+        $lookup: {
+          from: 'bills',
+          let: { tableNum: '$_id', shopIds: uniqueShopIds },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$tableNumber', '$$tableNum'] },
+                    { $in: ['$shopId', '$$shopIds'] }
+                  ]
+                }
+              }
+            },
+            { $sort: { createdAt: -1 } },
+            { $limit: 1 }
+          ],
+          as: 'bills'
+        }
+      },
+
+      // 5. Reshape output
+      {
+        $project: {
+          _id: 0,
+          tableNumber: '$_id',
+          customerName: 1,
+          orders: 1,
+          totalAmount: 1,
+          firstOrderTime: 1,
+          bill: { $arrayElemAt: ['$bills', 0] },
+          statuses: 1,
+          billingStatuses: 1
+        }
+      }
+    ];
+
+    let tables = await Order.aggregate(pipeline);
+
+    // Remove internal fields from response
+    tables = tables.map(({ statuses, billingStatuses, ...rest }) => rest);
+
+    res.status(200).json({
+      success: true,
+      data: tables
+    });
+  } catch (error) {
+    console.error('Get table aggregation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch table data',
+      error: error.message
+    });
+  }
+};

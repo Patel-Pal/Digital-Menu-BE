@@ -4,7 +4,7 @@ const billItemSchema = new mongoose.Schema({
   menuItemId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'MenuItem',
-    required: true
+    required: false
   },
   name: { type: String, required: true },
   price: { type: Number, required: true },
