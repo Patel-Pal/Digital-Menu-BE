@@ -195,49 +195,46 @@ const createOrUpdateShopProfile = async (req, res) => {
 // @access  Private
 const getShopAnalytics = async (req, res) => {
   try {
-    // Ensure user is authenticated
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    console.log('=== GET SHOP ANALYTICS ===');
-    console.log('User ID:', req.user._id);
-
     const shop = await Shop.findOne({ ownerId: req.user._id });
     
     if (!shop) {
-      console.log('❌ Shop not found for user:', req.user._id);
-      return res.status(404).json({ 
-        message: 'Shop not found',
-        debug: {
-          userId: req.user._id,
-          userRole: req.user.role
-        }
-      });
+      return res.status(404).json({ message: 'Shop not found' });
     }
     
-    console.log('Shop found:', shop.name);
-    console.log('Shop _id:', shop._id);
-    console.log('Shop ownerId:', shop.ownerId);
-    console.log('Current qrScans:', shop.qrScans);
-    console.log('Current menuViews:', shop.menuViews);
-    
-    // Calculate real percentage changes
     const currentScans = shop.qrScans || 0;
-    const lastWeekScans = shop.lastWeekScans || 0;
     const currentViews = shop.menuViews || 0;
-    const lastWeekViews = shop.lastWeekViews || 0;
-    
-    const scansChange = lastWeekScans > 0 
-      ? Math.round(((currentScans - lastWeekScans) / lastWeekScans) * 100)
-      : currentScans > 0 ? 100 : 0;
-      
-    const viewsChange = lastWeekViews > 0 
-      ? Math.round(((currentViews - lastWeekViews) / lastWeekViews) * 100)
-      : currentViews > 0 ? 100 : 0;
-    
-    console.log('Returning totalScans:', currentScans);
-    console.log('=== GET SHOP ANALYTICS END ===');
+
+    // Compute real weekly change from DailyAnalytics
+    const DailyAnalytics = require('../models/DailyAnalytics');
+    const today = new Date();
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - 6);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+
+    const fmt = (d) => d.toISOString().split('T')[0];
+
+    const [thisWeekData, lastWeekData] = await Promise.all([
+      DailyAnalytics.find({ shopId: shop._id, date: { $gte: fmt(thisWeekStart), $lte: fmt(today) } }),
+      DailyAnalytics.find({ shopId: shop._id, date: { $gte: fmt(lastWeekStart), $lt: fmt(thisWeekStart) } }),
+    ]);
+
+    const thisWeekScans = thisWeekData.reduce((s, d) => s + (d.scans || 0), 0);
+    const lastWeekScans = lastWeekData.reduce((s, d) => s + (d.scans || 0), 0);
+    const thisWeekViews = thisWeekData.reduce((s, d) => s + (d.views || 0), 0);
+    const lastWeekViews = lastWeekData.reduce((s, d) => s + (d.views || 0), 0);
+
+    const calcChange = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const scansChange = calcChange(thisWeekScans, lastWeekScans);
+    const viewsChange = calcChange(thisWeekViews, lastWeekViews);
     
     res.json({ 
       success: true, 
@@ -250,13 +247,7 @@ const getShopAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error('Shop analytics error:', error);
-    res.status(500).json({ 
-      message: error.message,
-      debug: {
-        userId: req.user?._id,
-        error: error.stack
-      }
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
