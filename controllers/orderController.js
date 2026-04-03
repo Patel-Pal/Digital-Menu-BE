@@ -286,14 +286,13 @@ exports.getOrder = async (req, res) => {
   }
 };
 
+
 // Get table aggregation for a shop
 exports.getTableAggregation = async (req, res) => {
   try {
     const { shopId } = req.params;
     const { showAll } = req.query;
 
-    // Resolve both possible shopId values (ownerId and shop._id)
-    // Same pattern as getShopOrders
     const Shop = require('../models/Shop');
     const shopIds = [shopId];
 
@@ -309,40 +308,44 @@ exports.getTableAggregation = async (req, res) => {
 
     const uniqueShopIds = [...new Set(shopIds)].map(id => new mongoose.Types.ObjectId(id));
 
-    const statusFilter = showAll === 'true' ? {} : { status: { $in: ['pending', 'approved'] } };
+    const statusFilter = showAll === 'true' 
+      ? {} 
+      : { 
+          $or: [
+            { status: { $in: ['pending', 'approved'] } },
+            { status: 'completed' }
+          ]
+        };
 
     const pipeline = [
-      // 1. Match orders for this shop (only active statuses unless showAll)
       { $match: { shopId: { $in: uniqueShopIds }, ...statusFilter } },
-
-      // 2. Sort by createdAt descending (newest first within each group)
       { $sort: { createdAt: -1 } },
-
-      // 3. Group by tableNumber
       {
         $group: {
           _id: '$tableNumber',
           customerName: { $first: '$customerName' },
           orders: { $push: '$$ROOT' },
           totalAmount: { $sum: '$totalAmount' },
-          firstOrderTime: { $min: '$createdAt' },
-          statuses: { $push: '$status' },
-          billingStatuses: { $push: '$billingStatus' }
+          firstOrderTime: { $min: '$createdAt' }
         }
       },
-
-      // 4. Lookup associated bills
+      {
+        $addFields: {
+          orderIdList: { $map: { input: '$orders', as: 'o', in: '$$o._id' } }
+        }
+      },
       {
         $lookup: {
           from: 'bills',
-          let: { tableNum: '$_id', shopIds: uniqueShopIds },
+          let: { tableNum: '$_id', shopIds: uniqueShopIds, orderIds: '$orderIdList' },
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
                     { $eq: ['$tableNumber', '$$tableNum'] },
-                    { $in: ['$shopId', '$$shopIds'] }
+                    { $in: ['$shopId', '$$shopIds'] },
+                    { $gt: [{ $size: { $setIntersection: ['$orderIds', '$$orderIds'] } }, 0] }
                   ]
                 }
               }
@@ -353,8 +356,6 @@ exports.getTableAggregation = async (req, res) => {
           as: 'bills'
         }
       },
-
-      // 5. Reshape output
       {
         $project: {
           _id: 0,
@@ -363,17 +364,23 @@ exports.getTableAggregation = async (req, res) => {
           orders: 1,
           totalAmount: 1,
           firstOrderTime: 1,
-          bill: { $arrayElemAt: ['$bills', 0] },
-          statuses: 1,
-          billingStatuses: 1
+          bill: { $arrayElemAt: ['$bills', 0] }
         }
-      }
+      },
+      ...(showAll === 'true' ? [] : [{
+        $match: {
+          $nor: [
+            {
+              'bill.paymentStatus': 'paid',
+              'orders': { $not: { $elemMatch: { status: { $in: ['pending', 'approved'] } } } }
+            }
+          ]
+        }
+      }])
     ];
 
     let tables = await Order.aggregate(pipeline);
-
-    // Remove internal fields from response
-    tables = tables.map(({ statuses, billingStatuses, ...rest }) => rest);
+    tables = tables.map(({ orderIdList, ...rest }) => rest);
 
     res.status(200).json({
       success: true,
