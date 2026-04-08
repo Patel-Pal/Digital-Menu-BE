@@ -7,7 +7,10 @@ const {
   updateShopStatus,
   deleteShop,
   getAnalytics,
-  getSubscriptions
+  getSubscriptions,
+  updateShopSubscription,
+  toggleFeatureOverride,
+  getShopFeatures
 } = require('../controllers/adminController');
 const { 
   getContactInfo, 
@@ -34,6 +37,9 @@ router.put('/users/:id/status', auth, authorize('admin'), updateUserStatus);
 router.get('/shops', auth, authorize('admin'), getAllShops);
 router.put('/shops/:id/status', auth, authorize('admin'), updateShopStatus);
 router.delete('/shops/:id', auth, authorize('admin'), deleteShop);
+router.put('/shops/:id/subscription', auth, authorize('admin'), updateShopSubscription);
+router.put('/shops/:id/features', auth, authorize('admin'), toggleFeatureOverride);
+router.get('/shops/:id/features', auth, authorize('admin'), getShopFeatures);
 
 // Analytics
 router.get('/analytics', auth, authorize('admin'), getAnalytics);

@@ -9,6 +9,7 @@ const {
   toggleCategoryStatus
 } = require('../controllers/categoryController');
 const { auth } = require('../middleware/auth');
+const { requireFeature } = require('../middleware/featureGate');
 
 const router = express.Router();
 
@@ -16,19 +17,19 @@ const router = express.Router();
 router.get('/shop/:shopId', getCategoriesByShop);
 
 // Protected routes
-router.get('/manage/:shopId', auth, getAllCategoriesForManagement);
+router.get('/manage/:shopId', auth, requireFeature('categories'), getAllCategoriesForManagement);
 
-router.post('/', auth, [
+router.post('/', auth, requireFeature('categories'), [
   body('name').notEmpty().withMessage('Category name is required'),
   body('shopId').notEmpty().withMessage('Shop ID is required')
 ], createCategory);
 
-router.put('/:id', auth, [
+router.put('/:id', auth, requireFeature('categories'), [
   body('name').notEmpty().withMessage('Category name is required')
 ], updateCategory);
 
-router.delete('/:id', auth, deleteCategory);
+router.delete('/:id', auth, requireFeature('categories'), deleteCategory);
 
-router.patch('/:id/toggle', auth, toggleCategoryStatus);
+router.patch('/:id/toggle', auth, requireFeature('categories'), toggleCategoryStatus);
 
 module.exports = router;

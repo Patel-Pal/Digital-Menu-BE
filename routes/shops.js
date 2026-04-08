@@ -10,7 +10,8 @@ const {
   getShopAnalytics,
   incrementScan,
   incrementView,
-  getDetailedAnalytics
+  getDetailedAnalytics,
+  getMyFeatures
 } = require('../controllers/shopController');
 const { auth, authorize } = require('../middleware/auth');
 
@@ -21,6 +22,7 @@ router.get('/profile', auth, getShopProfile);
 router.post('/profile', auth, createOrUpdateShopProfile);
 router.get('/analytics', auth, getShopAnalytics);
 router.get('/analytics/detailed', auth, getDetailedAnalytics);
+router.get('/my/features', auth, authorize('shopkeeper'), getMyFeatures);
 
 // Other routes
 router.get('/', getShops);

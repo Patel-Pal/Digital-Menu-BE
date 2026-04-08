@@ -437,4 +437,36 @@ const getDetailedAnalytics = async (req, res) => {
   }
 };
 
-module.exports = { getShops, getShop, createShop, updateShop, deleteShop, getShopProfile, createOrUpdateShopProfile, getShopAnalytics, incrementScan, incrementView, getDetailedAnalytics };
+// @desc    Get resolved features for the authenticated shopkeeper's shop
+// @route   GET /api/shops/my/features
+// @access  Private (Shopkeeper)
+const getMyFeatures = async (req, res) => {
+  try {
+    const { resolveFeatures } = require('../config/featureMatrix');
+
+    const shop = await Shop.findById(req.user.shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    const overridesObj = shop.featureOverrides instanceof Map
+      ? Object.fromEntries(shop.featureOverrides)
+      : shop.featureOverrides || {};
+
+    const resolvedFeatures = resolveFeatures(shop.subscription, shop.featureOverrides);
+
+    res.json({
+      success: true,
+      data: {
+        subscription: shop.subscription,
+        featureOverrides: overridesObj,
+        resolvedFeatures,
+      },
+    });
+  } catch (error) {
+    console.error('Get my features error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getShops, getShop, createShop, updateShop, deleteShop, getShopProfile, createOrUpdateShopProfile, getShopAnalytics, incrementScan, incrementView, getDetailedAnalytics, getMyFeatures };

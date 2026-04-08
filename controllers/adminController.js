@@ -3,6 +3,7 @@ const Shop = require('../models/Shop');
 const Category = require('../models/Category');
 const MenuItem = require('../models/MenuItem');
 const DailyAnalytics = require('../models/DailyAnalytics');
+const { isValidPlan, isValidFeatureKey, resolveFeatures } = require('../config/featureMatrix');
 
 // @desc    Get dashboard stats
 // @route   GET /api/admin/stats
@@ -262,6 +263,89 @@ const getSubscriptions = async (req, res) => {
   }
 };
 
+// @desc    Update shop subscription plan
+// @route   PUT /api/admin/shops/:id/subscription
+// @access  Private (Admin)
+const updateShopSubscription = async (req, res) => {
+  try {
+    const { plan } = req.body;
+
+    if (!isValidPlan(plan)) {
+      return res.status(400).json({ message: `Invalid subscription plan: ${plan}` });
+    }
+
+    const shop = await Shop.findByIdAndUpdate(
+      req.params.id,
+      { subscription: plan },
+      { new: true }
+    ).populate('ownerId', 'name email');
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    res.json({ success: true, data: shop });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Toggle feature override for a shop
+// @route   PUT /api/admin/shops/:id/features
+// @access  Private (Admin)
+const toggleFeatureOverride = async (req, res) => {
+  try {
+    const { featureKey, value } = req.body;
+
+    if (!isValidFeatureKey(featureKey)) {
+      return res.status(400).json({ message: `Invalid feature key: ${featureKey}` });
+    }
+
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (value === null || value === undefined) {
+      shop.featureOverrides.delete(featureKey);
+    } else {
+      shop.featureOverrides.set(featureKey, Boolean(value));
+    }
+
+    await shop.save();
+
+    res.json({ success: true, data: shop });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get shop features (plan, overrides, resolved)
+// @route   GET /api/admin/shops/:id/features
+// @access  Private (Admin)
+const getShopFeatures = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    const overridesObj = Object.fromEntries(shop.featureOverrides || new Map());
+    const resolved = resolveFeatures(shop.subscription, overridesObj);
+
+    res.json({
+      success: true,
+      data: {
+        subscription: shop.subscription,
+        featureOverrides: overridesObj,
+        resolvedFeatures: resolved
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = { 
   getDashboardStats, 
   getAllUsers, 
@@ -270,5 +354,8 @@ module.exports = {
   updateShopStatus,
   deleteShop,
   getAnalytics,
-  getSubscriptions
+  getSubscriptions,
+  updateShopSubscription,
+  toggleFeatureOverride,
+  getShopFeatures
 };

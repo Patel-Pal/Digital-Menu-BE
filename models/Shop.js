@@ -42,6 +42,11 @@ const shopSchema = new mongoose.Schema({
     enum: ['free', 'basic', 'premium', 'enterprise'],
     default: 'free'
   },
+  featureOverrides: {
+    type: Map,
+    of: Boolean,
+    default: () => new Map()
+  },
   isActive: {
     type: Boolean,
     default: true
