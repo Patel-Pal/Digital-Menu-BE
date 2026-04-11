@@ -22,14 +22,13 @@ function requireFeature(featureKey) {
 
       // For shopkeeper, waiter, chef — enforce the gate
       if (['shopkeeper', 'waiter', 'chef'].includes(req.user.role)) {
-        const shopId = req.user.shopId;
-
-        // No shopId on user — let auth middleware handle it
-        if (!shopId) {
-          return next();
+        // Try shopId first, then fall back to ownerId lookup
+        let shop = req.user.shopId
+          ? await Shop.findById(req.user.shopId).select('subscription featureOverrides')
+          : null;
+        if (!shop) {
+          shop = await Shop.findOne({ ownerId: req.user._id }).select('subscription featureOverrides');
         }
-
-        const shop = await Shop.findById(shopId).select('subscription featureOverrides');
 
         // Shop not found — let downstream handle it
         if (!shop) {

@@ -444,7 +444,11 @@ const getMyFeatures = async (req, res) => {
   try {
     const { resolveFeatures } = require('../config/featureMatrix');
 
-    const shop = await Shop.findById(req.user.shopId);
+    // Try shopId first, then fall back to ownerId lookup (same as getShopProfile)
+    let shop = req.user.shopId ? await Shop.findById(req.user.shopId) : null;
+    if (!shop) {
+      shop = await Shop.findOne({ ownerId: req.user._id });
+    }
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
