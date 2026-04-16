@@ -2,7 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const emailService = require('../config/emailService');
-const { otpEmailTemplate, passwordResetConfirmationTemplate } = require('../utils/emailTemplates');
+const { otpEmailTemplate, passwordResetConfirmationTemplate, shopkeeperWelcomeTemplate, adminNewShopkeeperTemplate } = require('../utils/emailTemplates');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -25,6 +25,33 @@ const register = async (req, res) => {
     const user = await User.create({ name, email, password, role });
     const token = generateToken(user._id);
 
+    // Send emails for shopkeeper registrations (fire-and-forget, don't block response)
+    if (role === 'shopkeeper') {
+      const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'devinpro.404@gmail.com';
+
+      // Welcome email to shopkeeper
+      const welcomeMail = shopkeeperWelcomeTemplate(user.name, user.email);
+      emailService.sendEmail({
+        to: user.email,
+        subject: welcomeMail.subject,
+        text: welcomeMail.text,
+        html: welcomeMail.html
+      }).catch(err => console.error('Shopkeeper welcome email failed:', err.message));
+
+      // Notification email to admin
+      const adminMail = adminNewShopkeeperTemplate({
+        name: user.name,
+        email: user.email,
+        registeredAt: user.createdAt
+      });
+      emailService.sendEmail({
+        to: ADMIN_EMAIL,
+        subject: adminMail.subject,
+        text: adminMail.text,
+        html: adminMail.html
+      }).catch(err => console.error('Admin notification email failed:', err.message));
+    }
+
     res.status(201).json({
       success: true,
       token,
@@ -33,7 +60,7 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        shopId: user._id // Use user's ObjectId as shopId for now
+        shopId: user._id
       }
     });
   } catch (error) {
