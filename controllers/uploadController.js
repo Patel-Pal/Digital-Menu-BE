@@ -6,10 +6,15 @@ const { upload, uploadToCloudinary } = require('../config/cloudinary');
 const uploadImage = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No image file provided' });
+      return res.status(400).json({ message: 'No image file provided. Make sure the field name is "image".' });
     }
 
-    // For now, return a placeholder URL if Cloudinary fails
+    console.log('Upload request received:', {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    });
+
     try {
       const result = await uploadToCloudinary(req.file.buffer, 'digital-menu');
       
@@ -21,13 +26,13 @@ const uploadImage = async (req, res) => {
         }
       });
     } catch (cloudinaryError) {
-      console.error('Cloudinary error:', cloudinaryError);
+      console.error('Cloudinary error:', cloudinaryError.message || cloudinaryError);
       
-      // Return a placeholder URL for testing
+      // Return a placeholder URL so the menu item can still be created
       res.json({
         success: true,
         data: {
-          url: 'https://via.placeholder.com/400x300?text=Menu+Item',
+          url: `https://placehold.co/400x300/f97316/white?text=${encodeURIComponent(req.file.originalname.split('.')[0] || 'Menu Item')}`,
           publicId: 'placeholder'
         }
       });

@@ -15,6 +15,23 @@ exports.createOrder = async (req, res) => {
       deviceId = 'waiter_' + req.user._id;
     }
 
+    // Check if the shop's subscription includes the 'orders' feature
+    const Shop = require('../models/Shop');
+    const { resolveFeatures } = require('../config/featureMatrix');
+    const targetShop = await Shop.findOne({
+      $or: [{ _id: shopId }, { ownerId: shopId }]
+    }).select('subscription featureOverrides');
+
+    if (targetShop) {
+      const resolved = resolveFeatures(targetShop.subscription, targetShop.featureOverrides);
+      if (!resolved.includes('orders')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Ordering is not available for this restaurant. The shop owner needs to upgrade their plan.'
+        });
+      }
+    }
+
     // Validate items and calculate total
     let totalAmount = 0;
     const orderItems = [];

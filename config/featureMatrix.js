@@ -15,13 +15,9 @@ const FEATURE_KEYS = [
 ];
 
 const FEATURE_MATRIX = {
-  free: ['qr_code', 'menu_items', 'orders', 'shop_settings'],
-  basic: ['qr_code', 'menu_items', 'orders', 'shop_settings', 'categories', 'billing', 'analytics'],
-  premium: [
-    'qr_code', 'menu_items', 'orders', 'shop_settings',
-    'categories', 'billing', 'analytics',
-    'waiters', 'chefs', 'tables', 'billing_analytics', 'export', 'qr_customization',
-  ],
+  free: ['qr_code', 'categories', 'menu_items', 'shop_settings', 'qr_customization'],
+  basic: [...FEATURE_KEYS],
+  premium: [...FEATURE_KEYS],
   enterprise: [...FEATURE_KEYS],
 };
 
