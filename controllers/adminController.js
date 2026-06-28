@@ -86,46 +86,93 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
-// @desc    Get all shops with filters
+// @desc    Get all shops with filters (includes shopkeepers with no shop profile)
 // @route   GET /api/admin/shops
 // @access  Private (Admin)
 const getAllShops = async (req, res) => {
   try {
-    const { search, status, subscription, page = 1, limit = 10 } = req.query;
-    
-    let query = {};
-    
+    const { search, status, subscription, profileStatus, page = 1, limit = 10 } = req.query;
+
+    // Fetch all shopkeeper users
+    const shopkeeperQuery = { role: 'shopkeeper' };
     if (search) {
-      query.$or = [
+      shopkeeperQuery.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ];
     }
-    
-    if (status) {
-      query.isActive = status === 'active';
-    }
-    
-    if (subscription) {
-      query.subscription = subscription;
-    }
+    const allShopkeepers = await User.find(shopkeeperQuery).select('-password');
 
-    const shops = await Shop.find(query)
+    // Fetch all shops matching filters
+    const shopQuery = {};
+    if (search) {
+      shopQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (status) shopQuery.isActive = status === 'active';
+    if (subscription) shopQuery.subscription = subscription;
+
+    const allShops = await Shop.find(shopQuery)
       .populate('ownerId', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .sort({ createdAt: -1 });
 
-    const total = await Shop.countDocuments(query);
+    // Build a map of ownerId -> shop
+    const shopByOwner = {};
+    allShops.forEach(s => {
+      if (s.ownerId) shopByOwner[s.ownerId._id.toString()] = s;
+    });
+
+    // Merge: shopkeepers with a shop get the shop data; without get a stub
+    let merged = allShopkeepers.map(user => {
+      const shop = shopByOwner[user._id.toString()];
+      if (shop) return { ...shop.toObject(), _profileComplete: true };
+      // Stub for shopkeepers with no shop profile
+      return {
+        _id: user._id,
+        _isStub: true,
+        _profileComplete: false,
+        name: user.name,
+        email: user.email,
+        ownerId: { _id: user._id, name: user.name, email: user.email },
+        subscription: 'free',
+        isActive: user.isActive,
+        qrScans: 0,
+        createdAt: user.createdAt,
+        type: null
+      };
+    });
+
+    // Also include shops whose owner is not a shopkeeper (edge case)
+    allShops.forEach(s => {
+      const ownerId = s.ownerId?._id?.toString();
+      if (ownerId && !shopByOwner[ownerId] === false) return; // already included
+      const alreadyIn = merged.some(m => m._id.toString() === s._id.toString());
+      if (!alreadyIn) merged.push({ ...s.toObject(), _profileComplete: true });
+    });
+
+    // Filter by profileStatus if requested
+    if (profileStatus === 'incomplete') {
+      merged = merged.filter(m => !m._profileComplete);
+    } else if (profileStatus === 'complete') {
+      merged = merged.filter(m => m._profileComplete);
+    }
+
+    // Pagination
+    const total = merged.length;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const paginated = merged.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
     res.json({
       success: true,
-      data: shops,
+      data: paginated,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
